@@ -1,0 +1,62 @@
+# ── 환경변수 (절대 커밋 금지) ──
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+
+# ── 의존성 ──
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# ── 빌드 산출물 ──
+dist/
+build/
+out/
+.next/
+.vercel/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# ── 테스트 / 커버리지 ──
+coverage/
+.nyc_output/
+
+# ── 로그 ──
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── 에디터 / OS ──
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 캐시 ──
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ── Supabase ──
+supabase/.branches
+supabase/.temp
+
+# ── 기타 ──
+*.local
+.history/
+
+.vercel
