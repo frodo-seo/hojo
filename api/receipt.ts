@@ -69,10 +69,12 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  const started = Date.now();
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const datalabKey = process.env.CHANDRA_API_KEY;
 
   if (!anthropicKey || !datalabKey) {
+    console.error("[receipt] missing keys:", { anthropic: !!anthropicKey, datalab: !!datalabKey });
     return new Response(
       JSON.stringify({ error: "API keys not configured" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
@@ -85,11 +87,14 @@ export default async function handler(req: Request): Promise<Response> {
   };
 
   if (!image) {
+    console.warn("[receipt] no image");
     return new Response(
       JSON.stringify({ error: "No image provided" }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
+
+  console.log(`[receipt] start mediaType=${mediaType} imageBytes=${image.length}`);
 
   try {
     // ── Step 1: Datalab Chandra OCR ──
@@ -112,6 +117,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (!convertRes.ok) {
       const errText = await convertRes.text();
+      console.error(`[receipt] datalab ${convertRes.status}:`, errText.slice(0, 200));
       return new Response(
         JSON.stringify({ error: "Datalab OCR failed", detail: errText }),
         { status: 502, headers: { "Content-Type": "application/json" } },
@@ -148,14 +154,15 @@ export default async function handler(req: Request): Promise<Response> {
 
     const rawOcr = convertData.markdown || "";
     if (!rawOcr) {
+      console.warn(`[receipt] OCR empty dur=${Date.now() - started}ms`);
       return new Response(
         JSON.stringify({ error: "OCR returned empty text" }),
         { status: 422, headers: { "Content-Type": "application/json" } },
       );
     }
 
-    // 정제 (토큰 절감)
     const cleaned = cleanOcr(rawOcr);
+    console.log(`[receipt] ocr done rawLen=${rawOcr.length} cleanedLen=${cleaned.length} dur=${Date.now() - started}ms`);
 
     // ── Step 2: Haiku — parse OCR text ──
     const haikuRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -181,6 +188,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (!haikuRes.ok) {
       const errText = await haikuRes.text();
+      console.error(`[receipt] anthropic ${haikuRes.status}:`, errText.slice(0, 200));
       return new Response(
         JSON.stringify({ error: "Haiku parsing failed", detail: errText }),
         { status: 502, headers: { "Content-Type": "application/json" } },
@@ -193,16 +201,21 @@ export default async function handler(req: Request): Promise<Response> {
     );
 
     if (!toolUse?.input) {
+      console.warn(`[receipt] parse failed dur=${Date.now() - started}ms`);
       return new Response(
         JSON.stringify({ error: "Failed to parse receipt items" }),
         { status: 422, headers: { "Content-Type": "application/json" } },
       );
     }
 
+    const itemCount = Array.isArray(toolUse.input?.items) ? toolUse.input.items.length : 0;
+    console.log(`[receipt] ok items=${itemCount} dur=${Date.now() - started}ms`);
+
     return new Response(JSON.stringify(toolUse.input), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error(`[receipt] exception dur=${Date.now() - started}ms:`, err);
     return new Response(
       JSON.stringify({ error: String(err) }),
       { status: 500, headers: { "Content-Type": "application/json" } },

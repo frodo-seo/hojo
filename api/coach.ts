@@ -5,8 +5,10 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  const started = Date.now();
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) {
+    console.error("[coach] ANTHROPIC_API_KEY missing");
     return new Response(
       JSON.stringify({ error: "API key not configured" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
@@ -19,11 +21,14 @@ export default async function handler(req: Request): Promise<Response> {
     year?: string;
   };
   if (!stats) {
+    console.warn("[coach] empty stats");
     return new Response(
       JSON.stringify({ error: "No stats provided" }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
+
+  console.log(`[coach] start type=${type}${year ? ` year=${year}` : ""} statsLen=${stats.length}`);
 
   const isYearly = type === "yearly";
 
@@ -80,6 +85,7 @@ ${stats}`;
 
     if (!haikuRes.ok) {
       const errText = await haikuRes.text();
+      console.error(`[coach] anthropic ${haikuRes.status}:`, errText.slice(0, 200));
       return new Response(
         JSON.stringify({ error: "Haiku failed", detail: errText }),
         { status: 502, headers: { "Content-Type": "application/json" } },
@@ -88,11 +94,13 @@ ${stats}`;
 
     const data = await haikuRes.json();
     const text = data.content?.[0]?.text || "";
+    console.log(`[coach] ok dur=${Date.now() - started}ms outLen=${text.length}`);
 
     return new Response(JSON.stringify({ insight: text }), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error(`[coach] exception dur=${Date.now() - started}ms:`, err);
     return new Response(
       JSON.stringify({ error: String(err) }),
       { status: 500, headers: { "Content-Type": "application/json" } },
