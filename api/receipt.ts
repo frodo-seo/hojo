@@ -1,4 +1,4 @@
-export const config = { runtime: "edge" as const };
+export const config = { runtime: "edge" };
 
 /** OCR 마크다운 → 최소 텍스트 (토큰 절감) */
 function cleanOcr(md: string): string {
