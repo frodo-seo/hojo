@@ -1,24 +1,24 @@
 import type { Category } from "../types";
 
 export const EXPENSE_CATEGORIES: Category[] = [
-  { id: "food", name: "식비", icon: "🍚", type: "expense" },
-  { id: "cafe", name: "카페/간식", icon: "☕", type: "expense" },
-  { id: "transport", name: "교통", icon: "🚌", type: "expense" },
-  { id: "housing", name: "주거/통신", icon: "🏠", type: "expense" },
-  { id: "living", name: "생활", icon: "🧴", type: "expense" },
-  { id: "shopping", name: "쇼핑", icon: "🛍️", type: "expense" },
-  { id: "health", name: "의료/건강", icon: "💊", type: "expense" },
-  { id: "culture", name: "문화/여가", icon: "🎬", type: "expense" },
-  { id: "education", name: "교육", icon: "📚", type: "expense" },
-  { id: "event", name: "경조사", icon: "🎁", type: "expense" },
-  { id: "etc-expense", name: "기타", icon: "📦", type: "expense" },
+  { id: "food", name: "식비", icon: "食", type: "expense" },
+  { id: "cafe", name: "카페/간식", icon: "茶", type: "expense" },
+  { id: "transport", name: "교통", icon: "車", type: "expense" },
+  { id: "housing", name: "주거/통신", icon: "家", type: "expense" },
+  { id: "living", name: "생활", icon: "具", type: "expense" },
+  { id: "shopping", name: "쇼핑", icon: "衣", type: "expense" },
+  { id: "health", name: "의료/건강", icon: "藥", type: "expense" },
+  { id: "culture", name: "문화/여가", icon: "樂", type: "expense" },
+  { id: "education", name: "교육", icon: "學", type: "expense" },
+  { id: "event", name: "경조사", icon: "禮", type: "expense" },
+  { id: "etc-expense", name: "기타", icon: "雜", type: "expense" },
 ];
 
 export const INCOME_CATEGORIES: Category[] = [
-  { id: "salary", name: "급여", icon: "💰", type: "income" },
-  { id: "side", name: "부수입", icon: "💵", type: "income" },
-  { id: "allowance", name: "용돈", icon: "🎀", type: "income" },
-  { id: "etc-income", name: "기타", icon: "📥", type: "income" },
+  { id: "salary", name: "급여", icon: "祿", type: "income" },
+  { id: "side", name: "부수입", icon: "副", type: "income" },
+  { id: "allowance", name: "용돈", icon: "錢", type: "income" },
+  { id: "etc-income", name: "기타", icon: "雜", type: "income" },
 ];
 
 export const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
