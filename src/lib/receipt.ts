@@ -51,7 +51,7 @@ export interface ParsedReceipt {
   total: number;
 }
 
-/** API 호출: 영수증 이미지 → 파싱 결과 */
+/** API 호출: 영수증 이미지 → 파싱 결과 (NDJSON 스트림) */
 export async function scanReceipt(
   base64: string,
   mediaType: string,
@@ -62,10 +62,34 @@ export async function scanReceipt(
     body: JSON.stringify({ image: base64, mediaType }),
   });
 
-  if (!res.ok) {
+  if (!res.ok || !res.body) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `API error: ${res.status}`);
   }
 
-  return res.json();
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (value) buffer += decoder.decode(value, { stream: true });
+
+    let nl: number;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      const msg = JSON.parse(line) as
+        | { type: "ping" }
+        | { type: "done"; result: ParsedReceipt }
+        | { type: "error"; error: string };
+      if (msg.type === "done") return msg.result;
+      if (msg.type === "error") throw new Error(msg.error);
+    }
+
+    if (done) break;
+  }
+
+  throw new Error("Stream ended without result");
 }
