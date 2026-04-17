@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getTransactionsByMonth } from "../lib/db";
 import { calcMonthStats, compareMonths, compareToText } from "../lib/stats";
 import { getReport, saveReport, getYearlyReport, saveYearlyReport } from "../lib/wiki";
@@ -24,8 +24,6 @@ export default function Coach({ refresh }: Props) {
   const month = currentMonth();
   const isDecember = month.endsWith("-12");
   const year = month.split("-")[0];
-
-  const autoGenRef = useRef(false);
 
   function monthlyTitle() {
     const [y, m] = month.split("-");
@@ -59,17 +57,12 @@ export default function Coach({ refresh }: Props) {
     const cmp = compareMonths(cur, prev);
     setStats(formatStats(cur, cmp));
 
-    // 저장된 월간 리포트 확인
+    // 저장된 월간 리포트 확인 (자동 생성 X, 버튼으로만)
     const saved = await getReport(month);
     if (saved) {
       setReportText(saved.content);
       setReportDate(fmtDate(saved.updatedAt));
       setReportState("ready");
-    } else if (txs.length > 0 && !autoGenRef.current) {
-      // 내역이 있는데 리포트가 없으면 자동 생성
-      autoGenRef.current = true;
-      setReportState("generating");
-      autoGenerateMonthly(cur, prev);
     } else {
       setReportState("empty");
     }
@@ -84,36 +77,6 @@ export default function Coach({ refresh }: Props) {
       } else {
         setYearlyState("empty");
       }
-    }
-  }
-
-  async function autoGenerateMonthly(
-    cur: ReturnType<typeof calcMonthStats>,
-    prev: ReturnType<typeof calcMonthStats>,
-  ) {
-    setError("");
-    try {
-      const cmp = compareMonths(cur, prev);
-      const context = compareToText(cmp);
-
-      const res = await fetch("/api/coach", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stats: context, type: "monthly" }),
-      });
-
-      if (!res.ok) throw new Error("AI 분석 실패");
-
-      const data = await res.json();
-      const insight: string = data.insight;
-
-      await saveReport(month, insight);
-      setReportText(insight);
-      setReportDate(fmtDate(new Date().toISOString()));
-      setReportState("ready");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "오류 발생");
-      setReportState("error");
     }
   }
 
@@ -287,8 +250,19 @@ export default function Coach({ refresh }: Props) {
           <>
             <div className="coach-report-body coach-sample-body">
               <p className="coach-report-text">{SAMPLE_MEMORIAL}</p>
-              <div className="coach-sample-badge">예시 상소 · 장부가 채워지면 실제 상소가 올라오옵니다</div>
+              <div className="coach-sample-badge">예시 상소 · 아래 버튼으로 실제 상소를 청하시옵소서</div>
             </div>
+            {stats && stats.categories.length > 0 && (
+              <div className="coach-report-actions">
+                <button className="coach-generate-btn" onClick={handleGenerate}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 2L2 5v4l6 3.5L14 9V5L8 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                    <circle cx="8" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3" />
+                  </svg>
+                  상소 올리기
+                </button>
+              </div>
+            )}
           </>
         )}
 
