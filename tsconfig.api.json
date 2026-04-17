@@ -1,18 +1,13 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.api.tsbuildinfo",
-    "target": "es2023",
-    "lib": ["ES2023"],
-    "module": "esnext",
+    "target": "ES2020",
+    "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["node"],
-    "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
     "esModuleInterop": true,
-    "isolatedModules": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "skipLibCheck": true,
+    "types": ["node"],
+    "lib": ["ES2020", "DOM"]
   },
-  "include": ["api"]
+  "include": ["api/**/*.ts"]
 }

@@ -1,151 +1,106 @@
-import { useState, type FormEvent } from "react";
-import type { Receipt } from "../types";
-import { relativeDate, won } from "../lib/format";
-import { compareMonth, toMonthKey } from "../lib/stats";
-import { askCoach } from "../lib/coach";
-import { signOut } from "../lib/auth";
+import { useEffect, useMemo, useState } from "react";
+import type { Transaction, Budget } from "../types";
+import { getTransactionsByMonth, getBudget, applyFixedIncomes, applyFixedExpenses } from "../lib/db";
+import { formatMoney, currentMonth } from "../lib/format";
+import { getCategoryById } from "../lib/categories";
+import BudgetBar from "../components/BudgetBar";
+import TransactionItem from "../components/TransactionItem";
+import MonthPicker from "../components/MonthPicker";
 
 type Props = {
-  receipts: Receipt[];
-  onOpen: (id: string) => void;
+  refresh: number;
+  onEditTx: (tx: Transaction) => void;
 };
 
-const SAMPLE_QUESTIONS = [
-  "이번달 술에 얼마 썼어?",
-  "저번달보다 카페 지출 줄었어?",
-  "이번달 제일 많이 쓴 가게는?",
-];
+export default function Home({ refresh, onEditTx }: Props) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budget, setBudget] = useState<Budget | undefined>();
+  const [month, setMonth] = useState(currentMonth());
 
-const modeLabel: Record<Receipt["mode"], { text: string; emoji: string }> = {
-  daily: { text: "일상", emoji: "🧾" },
-  memory: { text: "추억", emoji: "📸" },
-  settle: { text: "정산", emoji: "🤝" },
-};
-
-export default function Home({ receipts, onOpen }: Props) {
-  const cmp = compareMonth(receipts, toMonthKey(new Date()));
-  const recent = receipts.slice(0, 5);
-
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [asking, setAsking] = useState(false);
-  const [coachError, setCoachError] = useState<string | null>(null);
-
-  async function ask(q: string) {
-    if (!q.trim()) return;
-    setAsking(true);
-    setAnswer(null);
-    setCoachError(null);
-    try {
-      const a = await askCoach(q.trim());
-      setAnswer(a);
-    } catch (e) {
-      setCoachError(e instanceof Error ? e.message : "실패했어요");
-    } finally {
-      setAsking(false);
+  useEffect(() => {
+    async function load() {
+      const incomeApplied = await applyFixedIncomes(month);
+      const expenseApplied = await applyFixedExpenses(month);
+      const txs = await getTransactionsByMonth(month);
+      setTransactions(txs);
+      setBudget(await getBudget(month));
+      if (incomeApplied || expenseApplied) window.dispatchEvent(new Event("fixed-applied"));
     }
-  }
+    load();
+  }, [month, refresh]);
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    ask(question);
-  };
+  const { income, expense } = useMemo(() => {
+    let inc = 0,
+      exp = 0;
+    for (const t of transactions) {
+      if (t.type === "income") inc += t.amount;
+      else exp += t.amount;
+    }
+    return { income: inc, expense: exp };
+  }, [transactions]);
+
+  const recent = transactions.slice(0, 10);
+  const topCategories = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of transactions) {
+      if (t.type !== "expense") continue;
+      map.set(t.categoryId, (map.get(t.categoryId) ?? 0) + t.amount);
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([id, amount]) => ({ cat: getCategoryById(id), amount }));
+  }, [transactions]);
 
   return (
     <div className="screen">
-      <header className="hero-head">
-        <div className="hero-top">
-          <span className="badge">소비일기 · beta</span>
-          <button className="link" onClick={() => signOut()}>
-            로그아웃
-          </button>
-        </div>
-        <h1>내 소비가 이야기가 되는 곳</h1>
-        <p className="sub">영수증 한 장 + 사진 한 장이면 충분해요</p>
-        <div className="home-total">
-          <span className="muted small">이번달 지출</span>
-          <span className="total">{won(cmp.current)}</span>
-          {cmp.previous > 0 && (
-            <span
-              className={`delta ${cmp.delta > 0 ? "up" : "down"}`}
-              style={{ marginLeft: 6 }}
-            >
-              {cmp.delta > 0 ? "▲" : "▼"} {(Math.abs(cmp.ratio) * 100).toFixed(0)}%
-            </span>
-          )}
-        </div>
+      <header className="home-header">
+        <MonthPicker month={month} onChange={setMonth} />
       </header>
 
-      <section className="coach">
-        <form className="coach-form" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="AI 코치에게 물어보세요"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            disabled={asking}
-          />
-          <button type="submit" disabled={asking || !question.trim()}>
-            {asking ? "…" : "물어보기"}
-          </button>
-        </form>
-        {!answer && !asking && !coachError && (
-          <div className="coach-samples">
-            {SAMPLE_QUESTIONS.map((q) => (
-              <button
-                key={q}
-                className="coach-chip"
-                onClick={() => {
-                  setQuestion(q);
-                  ask(q);
-                }}
-              >
-                {q}
-              </button>
+      <div className="summary-cards">
+        <div className="summary-card income">
+          <span className="summary-label">수입</span>
+          <span className="summary-value">+{formatMoney(income)}</span>
+        </div>
+        <div className="summary-card expense">
+          <span className="summary-label">지출</span>
+          <span className="summary-value">-{formatMoney(expense)}</span>
+        </div>
+      </div>
+
+      {budget && <BudgetBar budget={budget.amount} spent={expense} />}
+
+      {topCategories.length > 0 && (
+        <section className="home-section">
+          <h2 className="section-title">이달 주요 지출</h2>
+          <div className="top-cats">
+            {topCategories.map(({ cat, amount }) => (
+              <div key={cat?.id} className="top-cat">
+                <span className="top-cat-icon">{cat?.icon}</span>
+                <span className="top-cat-name">{cat?.name}</span>
+                <span className="top-cat-amount">{formatMoney(amount)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="home-section">
+        <h2 className="section-title">최근 장부</h2>
+        {recent.length === 0 ? (
+          <div className="empty">
+            <p>장부가 아직 비어 있사옵니다</p>
+            <p className="empty-sub">아래 + 표식으로 첫 기록을 올려보시옵소서</p>
+          </div>
+        ) : (
+          <div className="tx-list">
+            {recent.map((t) => (
+              <TransactionItem key={t.id} tx={t} onClick={() => onEditTx(t)} />
             ))}
           </div>
         )}
-        {asking && <div className="coach-answer loading">생각 중…</div>}
-        {answer && <div className="coach-answer">{answer}</div>}
-        {coachError && <div className="coach-answer error">{coachError}</div>}
       </section>
-
-      <section className="recent">
-        <h2>최근 기록</h2>
-        {recent.length === 0 ? (
-          <div className="empty">
-            <p>아직 기록이 없어요.</p>
-            <p className="muted">아래 ＋ 버튼으로 첫 영수증을 찍어보세요.</p>
-          </div>
-        ) : (
-          <ul className="receipt-list">
-            {recent.map((r) => {
-              const m = modeLabel[r.mode];
-              return (
-                <li key={r.id}>
-                  <button className="receipt-card" onClick={() => onOpen(r.id)}>
-                    <div className="row">
-                      <span className="mode-tag">
-                        {m.emoji} {m.text}
-                      </span>
-                      <span className="muted small">{relativeDate(r.createdAt)}</span>
-                    </div>
-                    <div className="store">{r.store}</div>
-                    {r.story && <div className="story">{r.story}</div>}
-                    <div className="row">
-                      <span className="total">{won(r.total)}</span>
-                      {r.mode === "settle" && r.perPerson && (
-                        <span className="muted small">1인 {won(r.perPerson)}</span>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
     </div>
   );
 }

@@ -1,119 +1,151 @@
-import type { Receipt } from "../types";
+import type { Transaction } from "../types";
+import { getCategoryById } from "./categories";
 
-export type MonthKey = string;
-
-export const toMonthKey = (d: Date | string): MonthKey => {
-  const x = typeof d === "string" ? new Date(d) : d;
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}`;
-};
-
-export const monthLabel = (key: MonthKey): string => {
-  const [y, m] = key.split("-");
-  return `${y}.${m}`;
-};
-
-export const shiftMonth = (key: MonthKey, delta: number): MonthKey => {
-  const [y, m] = key.split("-").map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return toMonthKey(d);
-};
-
-export function filterByMonth(receipts: Receipt[], key: MonthKey): Receipt[] {
-  return receipts.filter((r) => toMonthKey(r.date) === key);
+/** 카테고리별 합계 */
+export interface CategoryStat {
+  categoryId: string;
+  name: string;
+  icon: string;
+  total: number;
+  count: number;
+  percent: number;
 }
 
-export type CategorySlice = {
-  name: string;
-  amount: number;
-  ratio: number;
-  color: string;
-};
+/** 월간 통계 (JS 로컬 계산, LLM 호출 0) */
+export interface MonthStats {
+  month: string;
+  totalExpense: number;
+  totalIncome: number;
+  expenseCount: number;
+  incomeCount: number;
+  avgExpense: number;
+  categories: CategoryStat[];
+  topCategory: CategoryStat | null;
+  dailyAvg: number;
+  daysWithSpending: number;
+}
 
-const CATEGORY_COLORS: Record<string, string> = {
-  식비: "#ff7a1a",
-  카페: "#c78a3a",
-  생활: "#6bb38a",
-  교통: "#5a9bd4",
-  쇼핑: "#b86ab8",
-  문화: "#d4b35a",
-  주류: "#a63a3a",
-};
-const FALLBACK = ["#8a8a8a", "#aa7a5a", "#6a8a9a", "#9a7a8a", "#7a9a6a"];
+/** 비교 통계 */
+export interface CompareStats {
+  current: MonthStats;
+  previous: MonthStats | null;
+  expenseDiff: number | null; // 전월 대비 % 변화
+  topChange: string | null; // "식비 +23%" 같은 요약
+}
 
-export function byCategory(receipts: Receipt[]): CategorySlice[] {
-  const bucket = new Map<string, number>();
-  for (const r of receipts) {
-    for (const it of r.items) {
-      const major = it.category?.major || "기타";
-      bucket.set(major, (bucket.get(major) ?? 0) + it.price);
+/** 월간 거래에서 통계 계산 (순수 JS) */
+export function calcMonthStats(
+  transactions: Transaction[],
+  month: string,
+): MonthStats {
+  const expenses = transactions.filter((t) => t.type === "expense");
+  const incomes = transactions.filter((t) => t.type === "income");
+
+  const totalExpense = expenses.reduce((s, t) => s + t.amount, 0);
+  const totalIncome = incomes.reduce((s, t) => s + t.amount, 0);
+
+  // 카테고리별 집계
+  const catMap = new Map<string, { total: number; count: number }>();
+  for (const t of expenses) {
+    const prev = catMap.get(t.categoryId) || { total: 0, count: 0 };
+    catMap.set(t.categoryId, {
+      total: prev.total + t.amount,
+      count: prev.count + 1,
+    });
+  }
+
+  const categories: CategoryStat[] = [...catMap.entries()]
+    .map(([id, { total, count }]) => {
+      const cat = getCategoryById(id);
+      return {
+        categoryId: id,
+        name: cat?.name ?? id,
+        icon: cat?.icon ?? "📦",
+        total,
+        count,
+        percent: totalExpense > 0 ? Math.round((total / totalExpense) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  // 지출이 있는 날 수
+  const spendDays = new Set(expenses.map((t) => t.date)).size;
+
+  // 해당 월의 일 수 계산
+  const [y, m] = month.split("-").map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+
+  return {
+    month,
+    totalExpense,
+    totalIncome,
+    expenseCount: expenses.length,
+    incomeCount: incomes.length,
+    avgExpense: expenses.length > 0 ? Math.round(totalExpense / expenses.length) : 0,
+    categories,
+    topCategory: categories[0] ?? null,
+    dailyAvg: Math.round(totalExpense / daysInMonth),
+    daysWithSpending: spendDays,
+  };
+}
+
+/** 두 달 비교 (순수 JS) */
+export function compareMonths(
+  current: MonthStats,
+  previous: MonthStats | null,
+): CompareStats {
+  if (!previous || previous.totalExpense === 0) {
+    return { current, previous, expenseDiff: null, topChange: null };
+  }
+
+  const expenseDiff = Math.round(
+    ((current.totalExpense - previous.totalExpense) / previous.totalExpense) * 100,
+  );
+
+  // 카테고리 중 가장 변화가 큰 것
+  let topChange: string | null = null;
+  let maxDiff = 0;
+  for (const cat of current.categories) {
+    const prev = previous.categories.find((c) => c.categoryId === cat.categoryId);
+    const prevTotal = prev?.total ?? 0;
+    if (prevTotal > 0) {
+      const diff = Math.round(((cat.total - prevTotal) / prevTotal) * 100);
+      if (Math.abs(diff) > Math.abs(maxDiff)) {
+        maxDiff = diff;
+        topChange = `${cat.name} ${diff > 0 ? "+" : ""}${diff}%`;
+      }
     }
   }
-  const total = Array.from(bucket.values()).reduce((a, b) => a + b, 0) || 1;
-  let fallbackIdx = 0;
-  return Array.from(bucket.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, amount]) => ({
-      name,
-      amount,
-      ratio: amount / total,
-      color:
-        CATEGORY_COLORS[name] ??
-        FALLBACK[fallbackIdx++ % FALLBACK.length],
-    }));
+
+  return { current, previous, expenseDiff, topChange };
 }
 
-export function dailyTotals(
-  receipts: Receipt[],
-  key: MonthKey,
-): Map<number, number> {
-  const map = new Map<number, number>();
-  for (const r of filterByMonth(receipts, key)) {
-    const day = new Date(r.date).getDate();
-    map.set(day, (map.get(day) ?? 0) + r.total);
+/** 통계를 사람이 읽을 수 있는 텍스트로 */
+function statsToText(stats: MonthStats): string {
+  const lines: string[] = [];
+  const [, m] = stats.month.split("-");
+  lines.push(`${parseInt(m)}월 지출 ${stats.totalExpense.toLocaleString()}원 (${stats.expenseCount}건)`);
+  if (stats.totalIncome > 0) {
+    lines.push(`수입 ${stats.totalIncome.toLocaleString()}원`);
   }
-  return map;
-}
+  lines.push(`일평균 ${stats.dailyAvg.toLocaleString()}원`);
 
-export const totalOf = (receipts: Receipt[]): number =>
-  receipts.reduce((a, b) => a + b.total, 0);
-
-export type MonthCompare = {
-  current: number;
-  previous: number;
-  delta: number;
-  ratio: number;
-};
-
-export function compareMonth(
-  receipts: Receipt[],
-  key: MonthKey,
-): MonthCompare {
-  const current = totalOf(filterByMonth(receipts, key));
-  const previous = totalOf(filterByMonth(receipts, shiftMonth(key, -1)));
-  const delta = current - previous;
-  const ratio = previous > 0 ? delta / previous : 0;
-  return { current, previous, delta, ratio };
-}
-
-export type DayGroup = { date: string; label: string; receipts: Receipt[] };
-
-export function groupByDay(receipts: Receipt[]): DayGroup[] {
-  const map = new Map<string, Receipt[]>();
-  for (const r of [...receipts].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  )) {
-    const d = new Date(r.date);
-    const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(r);
+  if (stats.categories.length > 0) {
+    lines.push("카테고리:");
+    for (const c of stats.categories.slice(0, 5)) {
+      lines.push(`  ${c.name} ${c.total.toLocaleString()}원 (${c.percent}%, ${c.count}건)`);
+    }
   }
-  const labels = ["일", "월", "화", "수", "목", "금", "토"];
-  return Array.from(map.entries()).map(([k, rs]) => {
-    const d = new Date(rs[0].date);
-    return {
-      date: k,
-      label: `${d.getMonth() + 1}월 ${d.getDate()}일 (${labels[d.getDay()]})`,
-      receipts: rs,
-    };
-  });
+
+  return lines.join("\n");
+}
+
+/** 비교 결과를 텍스트로 */
+export function compareToText(cmp: CompareStats): string {
+  let text = statsToText(cmp.current);
+  if (cmp.expenseDiff !== null) {
+    text += `\n전월 대비 ${cmp.expenseDiff > 0 ? "+" : ""}${cmp.expenseDiff}%`;
+    if (cmp.topChange) text += ` (${cmp.topChange})`;
+  }
+  return text;
 }

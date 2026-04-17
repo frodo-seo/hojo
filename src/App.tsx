@@ -1,110 +1,69 @@
-import { useCallback, useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
+import { useCallback, useState } from "react";
+import type { Transaction } from "./types";
 import Home from "./screens/Home";
-import Capture from "./screens/Capture";
-import Confirm from "./screens/Confirm";
-import Result from "./screens/Result";
-import Timeline from "./screens/Timeline";
-import Stats from "./screens/Stats";
-import Login from "./screens/Login";
+import Add from "./screens/Add";
+import History from "./screens/History";
+import Coach from "./screens/Coach";
+import Settings from "./screens/Settings";
+import ReceiptScan from "./screens/ReceiptScan";
+import Onboarding from "./screens/Onboarding";
 import TabBar, { type Tab } from "./components/TabBar";
-import { listReceipts } from "./lib/receipts";
-import { supabase } from "./lib/supabase";
-import type { Receipt } from "./types";
-import type { ReceiptDraft } from "./lib/pipeline";
 import "./App.css";
 
 type Screen =
   | { name: "tabs"; tab: Tab }
-  | { name: "capture" }
-  | { name: "confirm"; draft: ReceiptDraft }
-  | { name: "result"; receipt: Receipt };
+  | { name: "add"; editTx?: Transaction }
+  | { name: "receipt" };
 
 export default function App() {
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "tabs", tab: "home" });
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [refresh, setRefresh] = useState(0);
+  const [showAddSheet, setShowAddSheet] = useState(false);
+  const [onboarded, setOnboarded] = useState(
+    () => localStorage.getItem("onboarded") === "1",
+  );
 
-  useEffect(() => {
-    if (!supabase) {
-      setSession(null);
-      return;
-    }
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      if (!s) {
-        setReceipts([]);
-        setScreen({ name: "tabs", tab: "home" });
-      }
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  const refresh = useCallback(async () => {
-    try {
-      const list = await listReceipts();
-      setReceipts(list);
-      setLoadError(null);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "불러오기 실패");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (session) refresh();
-  }, [session, refresh]);
-
-  if (session === undefined) {
-    return <div className="loading-screen">로딩 중…</div>;
-  }
-  if (!session) {
-    return <Login />;
+  if (!onboarded) {
+    return <Onboarding onDone={() => setOnboarded(true)} />;
   }
 
-  const openReceipt = (id: string) => {
-    const r = receipts.find((x) => x.id === id);
-    if (r) setScreen({ name: "result", receipt: r });
+  const bump = useCallback(() => setRefresh((n) => n + 1), []);
+
+  const openAdd = (editTx?: Transaction) => {
+    setShowAddSheet(false);
+    setScreen({ name: "add", editTx });
   };
 
-  const afterConfirm = async (r: Receipt) => {
-    await refresh();
-    setScreen({ name: "result", receipt: r });
+  const afterSave = () => {
+    bump();
+    setScreen({ name: "tabs", tab: "home" });
   };
 
   return (
     <div className="app-frame">
-      {loadError && (
-        <div className="error-banner">⚠️ {loadError}</div>
-      )}
-
       {screen.name === "tabs" && screen.tab === "home" && (
-        <Home receipts={receipts} onOpen={openReceipt} />
+        <Home refresh={refresh} onEditTx={openAdd} />
       )}
-      {screen.name === "tabs" && screen.tab === "timeline" && (
-        <Timeline receipts={receipts} onOpen={openReceipt} />
+      {screen.name === "tabs" && screen.tab === "history" && (
+        <History refresh={refresh} onEditTx={openAdd} />
       )}
-      {screen.name === "tabs" && screen.tab === "stats" && (
-        <Stats receipts={receipts} />
+      {screen.name === "tabs" && screen.tab === "coach" && (
+        <Coach refresh={refresh} />
       )}
-      {screen.name === "capture" && (
-        <Capture
+      {screen.name === "tabs" && screen.tab === "settings" && (
+        <Settings refresh={refresh} onRefresh={bump} />
+      )}
+      {screen.name === "add" && (
+        <Add
+          editTx={screen.editTx}
+          onDone={afterSave}
           onBack={() => setScreen({ name: "tabs", tab: "home" })}
-          onDone={(draft) => setScreen({ name: "confirm", draft })}
         />
       )}
-      {screen.name === "confirm" && (
-        <Confirm
-          draft={screen.draft}
-          onBack={() => setScreen({ name: "capture" })}
-          onDone={afterConfirm}
-        />
-      )}
-      {screen.name === "result" && (
-        <Result
-          receipt={screen.receipt}
-          onHome={() => setScreen({ name: "tabs", tab: "home" })}
+      {screen.name === "receipt" && (
+        <ReceiptScan
+          onDone={afterSave}
+          onBack={() => setScreen({ name: "tabs", tab: "home" })}
         />
       )}
 
@@ -112,8 +71,55 @@ export default function App() {
         <TabBar
           current={screen.tab}
           onChange={(t) => setScreen({ name: "tabs", tab: t })}
-          onCapture={() => setScreen({ name: "capture" })}
+          onAdd={() => setShowAddSheet(true)}
         />
+      )}
+
+      {/* Add Method Bottom Sheet */}
+      {showAddSheet && (
+        <div className="sheet-backdrop" onClick={() => setShowAddSheet(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <button
+              className="sheet-option"
+              onClick={() => {
+                setShowAddSheet(false);
+                setScreen({ name: "receipt" });
+              }}
+            >
+              <div className="sheet-option-icon receipt-icon">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                  <rect x="3" y="2" width="16" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M7 7h8M7 11h8M7 15h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="sheet-option-text">
+                <span className="sheet-option-title">지출 스캔</span>
+                <span className="sheet-option-sub">영수증, 결제 캡쳐 등 사진으로 자동 입력</span>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="sheet-option-arrow">
+                <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              className="sheet-option"
+              onClick={() => openAdd()}
+            >
+              <div className="sheet-option-icon manual-icon">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                  <path d="M11 5v12M5 11h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="sheet-option-text">
+                <span className="sheet-option-title">직접 입력</span>
+                <span className="sheet-option-sub">금액과 카테고리 직접 선택</span>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="sheet-option-arrow">
+                <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

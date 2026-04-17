@@ -21,6 +21,7 @@ out/
 .turbo/
 *.tsbuildinfo
 next-env.d.ts
+api/*.js
 
 # ── 테스트 / 커버리지 ──
 coverage/

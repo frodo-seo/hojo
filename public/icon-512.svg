@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="96" fill="#F5F1EB"/>
+  <rect x="5" y="5" width="502" height="502" rx="93" stroke="#E5DFD6" stroke-width="2"/>
+  <text x="256" y="290" text-anchor="middle" font-family="serif" font-weight="700" font-size="180" fill="#2D2D2D">戶</text>
+  <rect x="148" y="370" width="216" height="10" rx="5" fill="#E5DFD6"/>
+  <rect x="148" y="370" width="140" height="10" rx="5" fill="#2D2D2D"/>
+</svg>

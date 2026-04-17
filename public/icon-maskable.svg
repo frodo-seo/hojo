@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" fill="#F5F1EB"/>
+  <text x="256" y="275" text-anchor="middle" font-family="serif" font-weight="700" font-size="160" fill="#2D2D2D">戶</text>
+  <rect x="165" y="350" width="182" height="8" rx="4" fill="#E5DFD6"/>
+  <rect x="165" y="350" width="118" height="8" rx="4" fill="#2D2D2D"/>
+</svg>
