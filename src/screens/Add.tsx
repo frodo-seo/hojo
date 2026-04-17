@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Transaction, TransactionType } from "../types";
 import { addTransaction, updateTransaction, deleteTransaction } from "../lib/db";
 import { EXPENSE_CATEGORIES } from "../lib/categories";
-import { today } from "../lib/format";
+import { today, formatAmountInput, amountKoreanWord } from "../lib/format";
 import CategoryPicker from "../components/CategoryPicker";
 
 type Props = {
@@ -114,16 +114,21 @@ export default function Add({ editTx, onDone, onBack }: Props) {
 
       <div className="amount-input-wrap">
         <input
-          type="number"
+          type="text"
           className="amount-input"
           placeholder="0"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          value={formatAmountInput(amount)}
+          onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))}
           inputMode="numeric"
           autoFocus
         />
         <span className="amount-unit">원</span>
       </div>
+      {amountKoreanWord(parseInt(amount) || 0) && (
+        <p className="amount-hint amount-hint-center">
+          {amountKoreanWord(parseInt(amount) || 0)}
+        </p>
+      )}
 
       <div className="quick-amount-chips">
         <button className="quick-chip" onClick={() => addAmount(1000)}>+1천</button>

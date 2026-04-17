@@ -967,10 +967,21 @@
   font-weight: 500;
 }
 
+.amount-hint-center {
+  text-align: center;
+  font-size: 15px;
+  margin-top: 8px;
+}
+
 .delete-btn-text {
-  font-size: 13px;
+  padding: 10px 20px;
+  font-size: 14px;
   color: var(--expense);
-  font-weight: 600;
+  font-weight: 700;
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 16px;
 }
 
 .export-btn {
