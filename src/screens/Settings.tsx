@@ -6,7 +6,7 @@ import {
   getAllTransactions,
 } from "../lib/db";
 import type { FixedIncome, FixedExpense } from "../types";
-import { currentMonth, formatMoney, getMonthLabel, formatAmountInput, parseAmountInput, amountKoreanHint } from "../lib/format";
+import { currentMonth, formatMoney, getMonthLabel, formatAmountInput, parseAmountInput, amountKoreanWord } from "../lib/format";
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, getCategoryById } from "../lib/categories";
 import { isReminderEnabled, enableReminder, disableReminder } from "../lib/reminder";
 
@@ -202,8 +202,8 @@ export default function Settings({ refresh, onRefresh }: Props) {
             />
             <span className="budget-unit">원</span>
           </div>
-          {amountKoreanHint(parseAmountInput(budgetAmount)) && (
-            <p className="amount-hint">{amountKoreanHint(parseAmountInput(budgetAmount))}</p>
+          {amountKoreanWord(parseAmountInput(budgetAmount)) && (
+            <p className="amount-hint">{amountKoreanWord(parseAmountInput(budgetAmount))}</p>
           )}
           <div className="budget-actions">
             <button className="save-btn small" onClick={handleSaveBudget}>
@@ -277,8 +277,8 @@ export default function Settings({ refresh, onRefresh }: Props) {
               ))}
             </select>
           </div>
-          {amountKoreanHint(parseAmountInput(newAmount)) && (
-            <p className="amount-hint">{amountKoreanHint(parseAmountInput(newAmount))}</p>
+          {amountKoreanWord(parseAmountInput(newAmount)) && (
+            <p className="amount-hint">{amountKoreanWord(parseAmountInput(newAmount))}</p>
           )}
           <button
             className="save-btn small"
@@ -364,8 +364,8 @@ export default function Settings({ refresh, onRefresh }: Props) {
               </option>
             ))}
           </select>
-          {amountKoreanHint(parseAmountInput(expAmount)) && (
-            <p className="amount-hint">{amountKoreanHint(parseAmountInput(expAmount))}</p>
+          {amountKoreanWord(parseAmountInput(expAmount)) && (
+            <p className="amount-hint">{amountKoreanWord(parseAmountInput(expAmount))}</p>
           )}
           <button
             className="save-btn small"

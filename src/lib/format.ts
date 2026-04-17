@@ -32,6 +32,37 @@ export function amountKoreanHint(n: number): string {
   return parts.length ? parts.join(" ") + "원" : "";
 }
 
+/** 1000000 → "백만원" 같은 순 한글 표기. 큰 자릿수는 힌트 포함. */
+const KO_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+const KO_SMALL_UNITS = ["", "십", "백", "천"];
+const KO_BIG_UNITS = ["", "만", "억", "조"];
+
+function koreanChunk(n: number): string {
+  let out = "";
+  const digits = String(n).padStart(4, "0").split("").map(Number);
+  for (let i = 0; i < 4; i++) {
+    const d = digits[i];
+    if (d === 0) continue;
+    const unit = KO_SMALL_UNITS[3 - i];
+    // 일십/일백/일천은 생략, 일만은 유지
+    const numeral = d === 1 && unit ? "" : KO_DIGITS[d];
+    out += numeral + unit;
+  }
+  return out;
+}
+
+export function amountKoreanWord(n: number): string {
+  if (n <= 0) return "";
+  let remaining = n;
+  const chunks: string[] = [];
+  for (let i = 0; i < KO_BIG_UNITS.length && remaining > 0; i++) {
+    const chunk = remaining % 10000;
+    if (chunk > 0) chunks.unshift(koreanChunk(chunk) + KO_BIG_UNITS[i]);
+    remaining = Math.floor(remaining / 10000);
+  }
+  return chunks.join("") + "원";
+}
+
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   const month = d.getMonth() + 1;
