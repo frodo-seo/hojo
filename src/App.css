@@ -958,6 +958,12 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  margin-top: 16px;
+}
+
+.budget-actions .save-btn,
+.budget-actions .delete-btn-text {
+  margin-top: 0;
 }
 
 .amount-hint {
