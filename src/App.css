@@ -960,6 +960,13 @@
   align-items: center;
 }
 
+.amount-hint {
+  margin: 4px 2px 0;
+  font-size: 13px;
+  color: var(--primary-strong);
+  font-weight: 500;
+}
+
 .delete-btn-text {
   font-size: 13px;
   color: var(--expense);

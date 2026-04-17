@@ -6,7 +6,7 @@ import {
   getAllTransactions,
 } from "../lib/db";
 import type { FixedIncome, FixedExpense } from "../types";
-import { currentMonth, formatMoney, getMonthLabel } from "../lib/format";
+import { currentMonth, formatMoney, getMonthLabel, formatAmountInput, parseAmountInput, amountKoreanHint } from "../lib/format";
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, getCategoryById } from "../lib/categories";
 import { isReminderEnabled, enableReminder, disableReminder } from "../lib/reminder";
 
@@ -41,7 +41,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
     getBudget(month).then((b) => {
       if (b) {
         setCurrentBudget(b.amount);
-        setBudgetAmount(String(b.amount));
+        setBudgetAmount(b.amount.toLocaleString("ko-KR"));
       } else {
         setCurrentBudget(null);
         setBudgetAmount("");
@@ -62,7 +62,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
   }
 
   async function handleSaveBudget() {
-    const amt = parseInt(budgetAmount);
+    const amt = parseAmountInput(budgetAmount);
     if (!amt || amt <= 0) return;
     await setBudget(month, amt);
     setCurrentBudget(amt);
@@ -79,7 +79,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
   }
 
   async function handleAddFixed() {
-    const amt = parseInt(newAmount);
+    const amt = parseAmountInput(newAmount);
     if (!newName.trim() || !amt || amt <= 0) return;
     await addFixedIncome({
       id: crypto.randomUUID(),
@@ -103,7 +103,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
   }
 
   async function handleAddFixedExp() {
-    const amt = parseInt(expAmount);
+    const amt = parseAmountInput(expAmount);
     const day = parseInt(expDay);
     if (!expName.trim() || !amt || amt <= 0) return;
     if (!day || day < 1 || day > 31) return;
@@ -193,15 +193,18 @@ export default function Settings({ refresh, onRefresh }: Props) {
         <div className="budget-form">
           <div className="budget-input-wrap">
             <input
-              type="number"
+              type="text"
               className="form-input"
               placeholder="예산 금액"
               value={budgetAmount}
-              onChange={(e) => setBudgetAmount(e.target.value)}
+              onChange={(e) => setBudgetAmount(formatAmountInput(e.target.value))}
               inputMode="numeric"
             />
             <span className="budget-unit">원</span>
           </div>
+          {amountKoreanHint(parseAmountInput(budgetAmount)) && (
+            <p className="amount-hint">{amountKoreanHint(parseAmountInput(budgetAmount))}</p>
+          )}
           <div className="budget-actions">
             <button className="save-btn small" onClick={handleSaveBudget}>
               {saved ? "저장됨!" : "예산 설정"}
@@ -253,11 +256,11 @@ export default function Settings({ refresh, onRefresh }: Props) {
           <div className="fixed-form-row">
             <div className="budget-input-wrap">
               <input
-                type="number"
+                type="text"
                 className="form-input"
                 placeholder="금액"
                 value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
+                onChange={(e) => setNewAmount(formatAmountInput(e.target.value))}
                 inputMode="numeric"
               />
               <span className="budget-unit">원</span>
@@ -274,10 +277,13 @@ export default function Settings({ refresh, onRefresh }: Props) {
               ))}
             </select>
           </div>
+          {amountKoreanHint(parseAmountInput(newAmount)) && (
+            <p className="amount-hint">{amountKoreanHint(parseAmountInput(newAmount))}</p>
+          )}
           <button
             className="save-btn small"
             onClick={handleAddFixed}
-            disabled={!newName.trim() || !newAmount || parseInt(newAmount) <= 0}
+            disabled={!newName.trim() || parseAmountInput(newAmount) <= 0}
           >
             {incomeSaved ? "추가됨!" : "고정 수입 추가"}
           </button>
@@ -324,11 +330,11 @@ export default function Settings({ refresh, onRefresh }: Props) {
           <div className="fixed-form-row">
             <div className="budget-input-wrap">
               <input
-                type="number"
+                type="text"
                 className="form-input"
                 placeholder="금액"
                 value={expAmount}
-                onChange={(e) => setExpAmount(e.target.value)}
+                onChange={(e) => setExpAmount(formatAmountInput(e.target.value))}
                 inputMode="numeric"
               />
               <span className="budget-unit">원</span>
@@ -358,13 +364,15 @@ export default function Settings({ refresh, onRefresh }: Props) {
               </option>
             ))}
           </select>
+          {amountKoreanHint(parseAmountInput(expAmount)) && (
+            <p className="amount-hint">{amountKoreanHint(parseAmountInput(expAmount))}</p>
+          )}
           <button
             className="save-btn small"
             onClick={handleAddFixedExp}
             disabled={
               !expName.trim() ||
-              !expAmount ||
-              parseInt(expAmount) <= 0 ||
+              parseAmountInput(expAmount) <= 0 ||
               !expDay ||
               parseInt(expDay) < 1 ||
               parseInt(expDay) > 31
