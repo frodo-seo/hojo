@@ -126,7 +126,7 @@ export default function ReceiptScan({ onDone, onBack }: Props) {
           {(status === "compressing" || status === "scanning") && (
             <div className="receipt-loading">
               <div className="receipt-spinner" />
-              <span>{status === "compressing" ? "이미지 처리 중..." : "AI가 분석 중..."}</span>
+              <span>{status === "compressing" ? "이미지를 다듬는 중이옵니다..." : "호조가 장부를 살피는 중이옵니다..."}</span>
             </div>
           )}
         </div>

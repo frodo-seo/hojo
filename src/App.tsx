@@ -23,11 +23,11 @@ export default function App() {
     () => localStorage.getItem("onboarded") === "1",
   );
 
+  const bump = useCallback(() => setRefresh((n) => n + 1), []);
+
   if (!onboarded) {
     return <Onboarding onDone={() => setOnboarded(true)} />;
   }
-
-  const bump = useCallback(() => setRefresh((n) => n + 1), []);
 
   const openAdd = (editTx?: Transaction) => {
     setShowAddSheet(false);

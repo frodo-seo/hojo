@@ -1,24 +1,4 @@
-export const config = { runtime: "edge" };
-
-/** OCR 마크다운 → 최소 텍스트 (토큰 절감) */
-function cleanOcr(md: string): string {
-  return md
-    .replace(/!\[.*?\]\(.*?\)/g, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/^#{1,6}\s*/gm, "")
-    .replace(/\*{1,3}(.*?)\*{1,3}/g, "$1")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\\([*_~`])/g, "$1")
-    .replace(/\|[-:]+\|[-:|\s]*/g, "")
-    .replace(/\|/g, " ")
-    .replace(/^[-*_]{3,}$/gm, "")
-    .replace(/[ \t]+/g, " ")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-}
+export const config = { runtime: "nodejs", maxDuration: 60 };
 
 /** Haiku tool 정의 (최소 토큰) */
 const TOOL = {
@@ -133,8 +113,8 @@ export default async function handler(req: Request): Promise<Response> {
     // Poll for completion
     if (convertData.request_check_url && convertData.status !== "complete") {
       const checkUrl = convertData.request_check_url;
-      for (let i = 0; i < 30; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
         const pollRes = await fetch(checkUrl, {
           headers: { "X-API-Key": datalabKey },
         });
@@ -161,8 +141,7 @@ export default async function handler(req: Request): Promise<Response> {
       );
     }
 
-    const cleaned = cleanOcr(rawOcr);
-    console.log(`[receipt] ocr done rawLen=${rawOcr.length} cleanedLen=${cleaned.length} dur=${Date.now() - started}ms`);
+    console.log(`[receipt] ocr done rawLen=${rawOcr.length} dur=${Date.now() - started}ms`);
 
     // ── Step 2: Haiku — parse OCR text ──
     const haikuRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -180,7 +159,7 @@ export default async function handler(req: Request): Promise<Response> {
         messages: [
           {
             role: "user",
-            content: `지출 관련 텍스트(영수증, 카드결제, 배달앱, 송금 등)에서 품목명·가격·카테고리 추출. 품목이 1개여도 추출. 카테고리가 확실하지 않으면 null로. 카테고리: food=식비 cafe=카페 transport=교통 housing=주거 living=생활 shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타\n\n${cleaned}`,
+            content: `지출 관련 텍스트(영수증, 카드결제, 배달앱, 송금 등)에서 품목명·가격·카테고리 추출. 품목이 1개여도 추출. 카테고리가 확실하지 않으면 null로. 카테고리: food=식비 cafe=카페 transport=교통 housing=주거 living=생활 shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타\n\n${rawOcr}`,
           },
         ],
       }),
