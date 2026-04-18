@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import type { Transaction } from "../types";
 import { addTransaction } from "../lib/db";
 import { getCategoryById, EXPENSE_CATEGORIES } from "../lib/categories";
 import { formatMoney, today } from "../lib/format";
+import { isNative } from "../lib/platform";
 import {
   compressImage,
   scanReceipt,
@@ -44,6 +46,47 @@ export default function ReceiptScan({ onDone, onBack }: Props) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "스캔에 실패했습니다");
       setStatus("error");
+    }
+  }
+
+  async function handleNativePick(source: CameraSource) {
+    setError("");
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.Base64,
+        source,
+        width: 1280,
+        correctOrientation: true,
+      });
+
+      if (!photo.base64String) throw new Error("이미지를 가져오지 못했어요");
+
+      const mediaType = `image/${photo.format || "jpeg"}`;
+      setPreview(`data:${mediaType};base64,${photo.base64String}`);
+      setStatus("scanning");
+
+      const parsed = await scanReceipt(photo.base64String, mediaType);
+      setResult(parsed);
+      setItems(parsed.items);
+      setStatus("done");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "스캔에 실패했습니다";
+      if (msg.includes("cancel")) {
+        setStatus("idle");
+        return;
+      }
+      setError(msg);
+      setStatus("error");
+    }
+  }
+
+  function handlePickClick() {
+    if (isNative()) {
+      handleNativePick(CameraSource.Prompt);
+    } else {
+      fileRef.current?.click();
     }
   }
 
@@ -97,7 +140,7 @@ export default function ReceiptScan({ onDone, onBack }: Props) {
 
       {/* 업로드 영역 */}
       {status === "idle" && (
-        <button className="receipt-upload" onClick={() => fileRef.current?.click()}>
+        <button className="receipt-upload" onClick={handlePickClick}>
           <div className="receipt-upload-icon">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
               <rect x="4" y="6" width="24" height="20" rx="2" stroke="currentColor" strokeWidth="1.6" />

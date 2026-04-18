@@ -1,3 +1,7 @@
+import { Share } from "@capacitor/share";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { isNative } from "./platform";
+
 /**
  * 호조 상소문을 두루마리 카드 이미지(PNG)로 생성.
  * 세로 1080x1350 (인스타/스레드 최적), 한지+먹 톤.
@@ -155,6 +159,19 @@ function roundRect(
   ctx.closePath();
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result);
+      const i = s.indexOf(",");
+      resolve(i >= 0 ? s.slice(i + 1) : s);
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
 export async function shareMemorial(params: {
   title: string;
   body: string;
@@ -162,12 +179,29 @@ export async function shareMemorial(params: {
 }) {
   const blob = await renderMemorialCard(params);
   if (!blob) return;
-  const file = new File(
-    [blob],
-    params.filename ?? "hojo-memorial.png",
-    { type: "image/png" },
-  );
+  const filename = params.filename ?? "hojo-memorial.png";
 
+  if (isNative()) {
+    try {
+      const base64 = await blobToBase64(blob);
+      const written = await Filesystem.writeFile({
+        path: filename,
+        data: base64,
+        directory: Directory.Cache,
+      });
+      await Share.share({
+        title: params.title,
+        files: [written.uri],
+        dialogTitle: params.title,
+      });
+      return;
+    } catch (err) {
+      if (err instanceof Error && /cancel/i.test(err.message)) return;
+      console.warn("[share] native failed, fallback:", err);
+    }
+  }
+
+  const file = new File([blob], filename, { type: "image/png" });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: params.title });
