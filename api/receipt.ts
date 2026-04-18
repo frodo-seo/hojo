@@ -8,6 +8,10 @@ const TOOL = {
   input_schema: {
     type: "object",
     properties: {
+      is_receipt: {
+        type: "boolean",
+        description: "지출 증빙(영수증/결제 알림/배달앱/송금 캡쳐 등)이면 true. 그 외(풍경, 인물, 책, 메뉴판, 간판, 일반 스크린샷 등)는 false.",
+      },
       store: { type: "string" },
       date: { type: "string", description: "YYYY-MM-DD" },
       items: {
@@ -41,7 +45,7 @@ const TOOL = {
       },
       total: { type: "number" },
     },
-    required: ["items", "total"],
+    required: ["is_receipt", "items", "total"],
   },
 };
 
@@ -54,10 +58,23 @@ async function readJsonBody(req: IncomingMessage): Promise<any> {
   return raw ? JSON.parse(raw) : {};
 }
 
+function setCors(res: ServerResponse) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Max-Age", "86400");
+}
+
 export default async function handler(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
+  setCors(res);
+  if (req.method === "OPTIONS") {
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end("Method not allowed");
@@ -162,7 +179,7 @@ export default async function handler(
     const rawOcr = convertData.markdown || "";
     if (!rawOcr) {
       console.warn(`[receipt] OCR empty dur=${Date.now() - started}ms`);
-      send({ type: "error", error: "OCR returned empty text" });
+      send({ type: "error", error: "글자를 읽지 못하였사옵니다. 밝고 또렷한 사진으로 다시 올려주시옵소서." });
       return;
     }
     console.log(`[receipt] ocr done rawLen=${rawOcr.length} dur=${Date.now() - started}ms`);
@@ -182,7 +199,7 @@ export default async function handler(
         messages: [
           {
             role: "user",
-            content: `지출 관련 텍스트(영수증, 카드결제, 배달앱, 송금 등)에서 품목명·가격·카테고리 추출. 품목이 1개여도 추출. 카테고리가 확실하지 않으면 null로. 카테고리: food=식비 cafe=카페 transport=교통 housing=주거 living=생활 shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타\n\n${rawOcr}`,
+            content: `먼저 텍스트가 지출 증빙(영수증/카드결제/배달앱/송금 캡쳐 등)인지 판단. 아니면 is_receipt=false, items=[], total=0. 맞으면 is_receipt=true로 품목명·가격·카테고리 추출(품목 1개여도 추출). 카테고리 불확실하면 null. 카테고리: food=식비 cafe=카페 transport=교통 housing=주거 living=생활 shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타\n\n${rawOcr}`,
           },
         ],
       }),
@@ -201,6 +218,12 @@ export default async function handler(
     );
     if (!toolUse?.input) {
       send({ type: "error", error: "Failed to parse receipt items" });
+      return;
+    }
+
+    if (toolUse.input.is_receipt === false) {
+      console.log(`[receipt] not-a-receipt dur=${Date.now() - started}ms`);
+      send({ type: "error", error: "영수증이나 결제 내역이 아닌 듯하옵니다. 지출 증빙 사진을 올려주시옵소서." });
       return;
     }
 

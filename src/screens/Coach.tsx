@@ -4,6 +4,7 @@ import { calcMonthStats, compareMonths, compareToText } from "../lib/stats";
 import { getReport, saveReport, getYearlyReport, saveYearlyReport } from "../lib/wiki";
 import { currentMonth, prevMonth } from "../lib/format";
 import { shareMemorial } from "../lib/shareCard";
+import { apiUrl } from "../lib/apiBase";
 
 type Props = { refresh: number };
 type ReportState = "loading" | "empty" | "ready" | "generating" | "error";
@@ -93,7 +94,7 @@ export default function Coach({ refresh }: Props) {
       const cmp = compareMonths(cur, prev);
       const context = compareToText(cmp);
 
-      const res = await fetch("/api/coach", {
+      const res = await fetch(apiUrl("/api/coach"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stats: context, type: "monthly" }),
@@ -139,7 +140,7 @@ export default function Coach({ refresh }: Props) {
         return;
       }
 
-      const res = await fetch("/api/coach", {
+      const res = await fetch(apiUrl("/api/coach"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,3 +1,5 @@
+import { apiUrl } from "./apiBase";
+
 /** 이미지를 최대 1280px로 리사이즈 후 base64 반환 */
 export function compressImage(
   file: File,
@@ -56,7 +58,7 @@ export async function scanReceipt(
   base64: string,
   mediaType: string,
 ): Promise<ParsedReceipt> {
-  const res = await fetch("/api/receipt", {
+  const res = await fetch(apiUrl("/api/receipt"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image: base64, mediaType }),

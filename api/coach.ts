@@ -1,8 +1,18 @@
 export const config = { runtime: "edge" };
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400",
+};
+
 export default async function handler(req: Request): Promise<Response> {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: CORS_HEADERS });
   }
 
   const started = Date.now();
@@ -11,7 +21,7 @@ export default async function handler(req: Request): Promise<Response> {
     console.error("[coach] ANTHROPIC_API_KEY missing");
     return new Response(
       JSON.stringify({ error: "API key not configured" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   }
 
@@ -24,7 +34,7 @@ export default async function handler(req: Request): Promise<Response> {
     console.warn("[coach] empty stats");
     return new Response(
       JSON.stringify({ error: "No stats provided" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
+      { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   }
 
@@ -88,7 +98,7 @@ ${stats}`;
       console.error(`[coach] anthropic ${haikuRes.status}:`, errText.slice(0, 200));
       return new Response(
         JSON.stringify({ error: "Haiku failed", detail: errText }),
-        { status: 502, headers: { "Content-Type": "application/json" } },
+        { status: 502, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }
 
@@ -97,13 +107,13 @@ ${stats}`;
     console.log(`[coach] ok dur=${Date.now() - started}ms outLen=${text.length}`);
 
     return new Response(JSON.stringify({ insight: text }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error(`[coach] exception dur=${Date.now() - started}ms:`, err);
     return new Response(
       JSON.stringify({ error: String(err) }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   }
 }
