@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { subscribeNotifications } from "./lib/notifications";
 import type { Transaction } from "./types";
 import Home from "./screens/Home";
 import Add from "./screens/Add";
@@ -25,6 +26,17 @@ export default function App() {
 
   const bump = useCallback(() => setRefresh((n) => n + 1), []);
 
+  useEffect(() => {
+    let handle: Awaited<ReturnType<typeof subscribeNotifications>> | null = null;
+    (async () => {
+      handle = await subscribeNotifications((payload) => {
+        // Phase B-1: 수신 확인용 로그. B-2에서 Haiku 파싱 붙인다.
+        console.log("[hojo] notification", payload);
+      });
+    })();
+    return () => { handle?.remove(); };
+  }, []);
+
   if (!onboarded) {
     return <Onboarding onDone={() => setOnboarded(true)} />;
   }
@@ -48,7 +60,10 @@ export default function App() {
         <History refresh={refresh} onEditTx={openAdd} />
       )}
       {screen.name === "tabs" && screen.tab === "coach" && (
-        <Coach refresh={refresh} />
+        <Coach
+          refresh={refresh}
+          onGoSettings={() => setScreen({ name: "tabs", tab: "settings" })}
+        />
       )}
       {screen.name === "tabs" && screen.tab === "settings" && (
         <Settings refresh={refresh} onRefresh={bump} />
@@ -64,6 +79,7 @@ export default function App() {
         <ReceiptScan
           onDone={afterSave}
           onBack={() => setScreen({ name: "tabs", tab: "home" })}
+          onGoSettings={() => setScreen({ name: "tabs", tab: "settings" })}
         />
       )}
 

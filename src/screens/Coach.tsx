@@ -4,12 +4,16 @@ import { calcMonthStats, compareMonths, compareToText } from "../lib/stats";
 import { getReport, saveReport, getYearlyReport, saveYearlyReport } from "../lib/wiki";
 import { currentMonth, prevMonth } from "../lib/format";
 import { shareMemorial } from "../lib/shareCard";
-import { apiUrl } from "../lib/apiBase";
+import { generateMemorial } from "../lib/coach";
+import { ApiKeyMissingError } from "../lib/receipt";
+import { useApiKeysStatus } from "../lib/apiKeys";
 
-type Props = { refresh: number };
+type Props = { refresh: number; onGoSettings: () => void };
 type ReportState = "loading" | "empty" | "ready" | "generating" | "error";
 
-export default function Coach({ refresh }: Props) {
+export default function Coach({ refresh, onGoSettings }: Props) {
+  const keys = useApiKeysStatus();
+  const canGenerate = keys.anthropic;
   const [stats, setStats] = useState<ReturnType<typeof formatStats> | null>(null);
   const [reportState, setReportState] = useState<ReportState>("loading");
   const [reportText, setReportText] = useState("");
@@ -94,23 +98,18 @@ export default function Coach({ refresh }: Props) {
       const cmp = compareMonths(cur, prev);
       const context = compareToText(cmp);
 
-      const res = await fetch(apiUrl("/api/coach"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stats: context, type: "monthly" }),
-      });
-
-      if (!res.ok) throw new Error("AI 분석 실패");
-
-      const data = await res.json();
-      const insight: string = data.insight;
+      const insight = await generateMemorial(context, "monthly");
 
       await saveReport(month, insight);
       setReportText(insight);
       setReportDate(fmtDate(new Date().toISOString()));
       setReportState("ready");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류 발생");
+      if (err instanceof ApiKeyMissingError) {
+        setError("설정 → API 키에서 앤트로픽 키를 간수하옵소서.");
+      } else {
+        setError(err instanceof Error ? err.message : "오류 발생");
+      }
       setReportState("error");
     }
   }
@@ -140,27 +139,22 @@ export default function Coach({ refresh }: Props) {
         return;
       }
 
-      const res = await fetch(apiUrl("/api/coach"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stats: monthlyStats.join("\n---\n"),
-          type: "yearly",
-          year,
-        }),
-      });
-
-      if (!res.ok) throw new Error("AI 분석 실패");
-
-      const data = await res.json();
-      const insight: string = data.insight;
+      const insight = await generateMemorial(
+        monthlyStats.join("\n---\n"),
+        "yearly",
+        year,
+      );
 
       await saveYearlyReport(year, insight);
       setYearlyText(insight);
       setYearlyDate(fmtDate(new Date().toISOString()));
       setYearlyState("ready");
     } catch (err) {
-      setYearlyError(err instanceof Error ? err.message : "오류 발생");
+      if (err instanceof ApiKeyMissingError) {
+        setYearlyError("설정 → API 키에서 앤트로픽 키를 간수하옵소서.");
+      } else {
+        setYearlyError(err instanceof Error ? err.message : "오류 발생");
+      }
       setYearlyState("error");
     }
   }
@@ -171,6 +165,18 @@ export default function Coach({ refresh }: Props) {
         <h1>호조 판서의 상소</h1>
         <span className="coach-header-sub">전하의 가계를 살피어 아뢰옵나이다 (AI 분석)</span>
       </header>
+
+      {keys.loaded && !canGenerate && (
+        <div className="keys-missing-card">
+          <div className="keys-missing-title">상소를 올리려면 열쇠가 필요하옵니다</div>
+          <div className="keys-missing-body">
+            AI 분석은 <strong>Anthropic</strong> 키가 있어야 하옵니다. 설정에서 간수하시옵소서.
+          </div>
+          <button className="keys-missing-btn" onClick={onGoSettings}>
+            설정으로 가기
+          </button>
+        </div>
+      )}
 
       {/* 즉시 통계 (JS 로컬 계산) */}
       {stats && (
@@ -255,7 +261,7 @@ export default function Coach({ refresh }: Props) {
             </div>
             {stats && stats.categories.length > 0 && (
               <div className="coach-report-actions">
-                <button className="coach-generate-btn" onClick={handleGenerate}>
+                <button className="coach-generate-btn" onClick={handleGenerate} disabled={!canGenerate}>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <path d="M8 2L2 5v4l6 3.5L14 9V5L8 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                     <circle cx="8" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3" />
@@ -320,7 +326,7 @@ export default function Coach({ refresh }: Props) {
           {yearlyState === "empty" && (
             <div className="coach-report-body coach-report-empty">
               <p>{year}년 한 해의 장부를 총람하여 연말 상소를 올리시옵소서.</p>
-              <button className="coach-generate-btn" onClick={handleGenerateYearly}>
+              <button className="coach-generate-btn" onClick={handleGenerateYearly} disabled={!canGenerate}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M8 2L2 5v4l6 3.5L14 9V5L8 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                   <circle cx="8" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3" />

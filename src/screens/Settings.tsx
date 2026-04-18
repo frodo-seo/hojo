@@ -9,6 +9,9 @@ import type { FixedIncome, FixedExpense } from "../types";
 import { currentMonth, formatMoney, getMonthLabel, formatAmountInput, parseAmountInput, amountKoreanWord } from "../lib/format";
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, getCategoryById } from "../lib/categories";
 import { isReminderEnabled, enableReminder, disableReminder } from "../lib/reminder";
+import { getApiKeys, setAnthropicKey, setDatalabKey, maskKey } from "../lib/apiKeys";
+import { isListenerEnabled, openListenerSettings } from "../lib/notifications";
+import { isNative } from "../lib/platform";
 
 type Props = { refresh: number; onRefresh: () => void };
 
@@ -30,6 +33,18 @@ export default function Settings({ refresh, onRefresh }: Props) {
   const [reminderOn, setReminderOn] = useState(isReminderEnabled());
   const [reminderMsg, setReminderMsg] = useState("");
 
+  // 알림 리스너 (자동 기록)
+  const [listenerOn, setListenerOn] = useState(false);
+
+  // API 키
+  const [anthKey, setAnthKey] = useState("");
+  const [dataKey, setDataKey] = useState("");
+  const [anthSaved, setAnthSaved] = useState("");
+  const [dataSaved, setDataSaved] = useState("");
+  const [showAnth, setShowAnth] = useState(false);
+  const [showData, setShowData] = useState(false);
+  const [keysMsg, setKeysMsg] = useState("");
+
   const [fixedExpList, setFixedExpList] = useState<FixedExpense[]>([]);
   const [expName, setExpName] = useState("");
   const [expAmount, setExpAmount] = useState("");
@@ -49,7 +64,51 @@ export default function Settings({ refresh, onRefresh }: Props) {
     });
     loadFixed();
     loadFixedExp();
+    getApiKeys().then((k) => {
+      setAnthSaved(k.anthropic);
+      setDataSaved(k.datalab);
+    });
+    isListenerEnabled().then(setListenerOn);
+    const onFocus = () => { isListenerEnabled().then(setListenerOn); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
   }, [month, refresh]);
+
+  async function handleSaveAnthKey() {
+    await setAnthropicKey(anthKey);
+    setAnthSaved(anthKey);
+    setAnthKey("");
+    setShowAnth(false);
+    setKeysMsg("Anthropic 키를 간수하였사옵니다");
+    setTimeout(() => setKeysMsg(""), 2000);
+  }
+
+  async function handleClearAnthKey() {
+    await setAnthropicKey("");
+    setAnthSaved("");
+    setKeysMsg("Anthropic 키를 지웠사옵니다");
+    setTimeout(() => setKeysMsg(""), 2000);
+  }
+
+  async function handleSaveDataKey() {
+    await setDatalabKey(dataKey);
+    setDataSaved(dataKey);
+    setDataKey("");
+    setShowData(false);
+    setKeysMsg("Datalab 키를 간수하였사옵니다");
+    setTimeout(() => setKeysMsg(""), 2000);
+  }
+
+  async function handleClearDataKey() {
+    await setDatalabKey("");
+    setDataSaved("");
+    setKeysMsg("Datalab 키를 지웠사옵니다");
+    setTimeout(() => setKeysMsg(""), 2000);
+  }
 
   async function loadFixed() {
     const list = await getFixedIncomes();
@@ -401,6 +460,29 @@ export default function Settings({ refresh, onRefresh }: Props) {
         {reminderMsg && <p className="reminder-msg">{reminderMsg}</p>}
       </section>
 
+      {isNative() && (
+        <section className="settings-section">
+          <h2 className="section-title">알림 자동 기록 (실험)</h2>
+          <p className="section-desc">
+            결제 알림을 호조가 읽어 장부에 자동으로 올리옵니다. 네이버페이·카카오페이·현대카드 등 결제 관련 알림만 살피오며, 내용은 기기 밖으로 나가지 않사옵니다.
+          </p>
+          <div className="reminder-row">
+            <span className="reminder-label">
+              {listenerOn ? "허락됨" : "허락되지 않음"}
+            </span>
+            <button
+              className="save-btn small"
+              onClick={openListenerSettings}
+            >
+              {listenerOn ? "시스템 설정 열기" : "알림 읽기 허락"}
+            </button>
+          </div>
+          <p className="section-desc" style={{ marginTop: 8, fontSize: 12 }}>
+            허락 후 돌아오시면 상태가 갱신되옵니다.
+          </p>
+        </section>
+      )}
+
       <section className="settings-section">
         <h2 className="section-title">장부 내보내기</h2>
         <p className="section-desc">전체 장부를 CSV 파일로 보관하옵니다.</p>
@@ -410,6 +492,96 @@ export default function Settings({ refresh, onRefresh }: Props) {
           </svg>
           CSV 내보내기
         </button>
+      </section>
+
+      <section className="settings-section">
+        <h2 className="section-title">API 키</h2>
+        <p className="section-desc">
+          호조는 서버를 두지 않사옵니다. 직접 발급하신 키로 AI와 OCR 기능을 이용하옵소서.
+          키는 오로지 이 기기 안에만 머무옵니다.
+        </p>
+
+        <div className="apikey-row">
+          <div className="apikey-label">
+            <span className="apikey-name">Anthropic (AI 분석 · 영수증 파싱)</span>
+            <span className="apikey-hint">console.anthropic.com 에서 발급</span>
+          </div>
+          {anthSaved && !showAnth ? (
+            <div className="apikey-saved">
+              <code>{maskKey(anthSaved)}</code>
+              <button className="linkish" onClick={() => setShowAnth(true)}>변경</button>
+              <button className="linkish danger" onClick={handleClearAnthKey}>삭제</button>
+            </div>
+          ) : (
+            <div className="apikey-edit">
+              <input
+                type="password"
+                className="form-input"
+                placeholder="sk-ant-..."
+                value={anthKey}
+                onChange={(e) => setAnthKey(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <div className="apikey-actions">
+                <button
+                  className="save-btn small"
+                  onClick={handleSaveAnthKey}
+                  disabled={!anthKey.trim()}
+                >
+                  저장
+                </button>
+                {anthSaved && (
+                  <button className="linkish" onClick={() => { setShowAnth(false); setAnthKey(""); }}>
+                    취소
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="apikey-row">
+          <div className="apikey-label">
+            <span className="apikey-name">Datalab (영수증 OCR)</span>
+            <span className="apikey-hint">datalab.to 에서 발급</span>
+          </div>
+          {dataSaved && !showData ? (
+            <div className="apikey-saved">
+              <code>{maskKey(dataSaved)}</code>
+              <button className="linkish" onClick={() => setShowData(true)}>변경</button>
+              <button className="linkish danger" onClick={handleClearDataKey}>삭제</button>
+            </div>
+          ) : (
+            <div className="apikey-edit">
+              <input
+                type="password"
+                className="form-input"
+                placeholder="API key"
+                value={dataKey}
+                onChange={(e) => setDataKey(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <div className="apikey-actions">
+                <button
+                  className="save-btn small"
+                  onClick={handleSaveDataKey}
+                  disabled={!dataKey.trim()}
+                >
+                  저장
+                </button>
+                {dataSaved && (
+                  <button className="linkish" onClick={() => { setShowData(false); setDataKey(""); }}>
+                    취소
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {keysMsg && <p className="reminder-msg">{keysMsg}</p>}
       </section>
 
       <section className="settings-section">

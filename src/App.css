@@ -2019,3 +2019,139 @@ input[type="number"] {
   flex: 1;
   margin-top: 0;
 }
+
+/* ── API keys ── */
+.apikey-row {
+  padding: 14px 16px;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.apikey-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apikey-name {
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.apikey-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.apikey-saved {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.apikey-saved code {
+  flex: 1;
+  min-width: 0;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apikey-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apikey-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.linkish {
+  background: none;
+  border: none;
+  padding: 6px 4px;
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.linkish.danger {
+  color: #a24a3a;
+}
+
+.linkish:active {
+  opacity: 0.7;
+}
+
+.keys-missing-card {
+  margin: 14px 16px;
+  padding: 16px 18px;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.keys-missing-title {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary-strong);
+}
+
+.keys-missing-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+
+.keys-missing-body strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.keys-missing-btn {
+  align-self: flex-start;
+  padding: 8px 14px;
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--bg);
+  background: var(--primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.keys-missing-btn:active {
+  opacity: 0.85;
+}
+
+.receipt-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.coach-generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

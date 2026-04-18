@@ -1,4 +1,5 @@
-import { apiUrl } from "./apiBase";
+import { getApiKeys } from "./apiKeys";
+import { httpJson, httpMultipart } from "./http";
 
 /** 이미지를 최대 1280px로 리사이즈 후 base64 반환 */
 export function compressImage(
@@ -53,45 +54,167 @@ export interface ParsedReceipt {
   total: number;
 }
 
-/** API 호출: 영수증 이미지 → 파싱 결과 (NDJSON 스트림) */
+export class ApiKeyMissingError extends Error {
+  which: "anthropic" | "datalab" | "both";
+  constructor(which: "anthropic" | "datalab" | "both") {
+    super("API key missing");
+    this.name = "ApiKeyMissingError";
+    this.which = which;
+  }
+}
+
+const TOOL = {
+  name: "parse_receipt",
+  description: "지출 내역 구조화 (영수증, 결제 캡쳐, 배달앱, 송금 등)",
+  input_schema: {
+    type: "object",
+    properties: {
+      is_receipt: {
+        type: "boolean",
+        description: "지출 증빙(영수증/결제 알림/배달앱/송금 캡쳐 등)이면 true. 그 외(풍경, 인물, 책, 메뉴판, 간판, 일반 스크린샷 등)는 false.",
+      },
+      store: { type: "string" },
+      date: { type: "string", description: "YYYY-MM-DD" },
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            price: { type: "number" },
+            category: {
+              type: ["string", "null"],
+              enum: [
+                "food", "cafe", "transport", "housing", "living",
+                "shopping", "health", "culture", "education", "event",
+                "etc-expense", null,
+              ],
+              description: "확실하지 않으면 null",
+            },
+          },
+          required: ["name", "price"],
+        },
+      },
+      total: { type: "number" },
+    },
+    required: ["is_receipt", "items", "total"],
+  },
+};
+
+function cleanOcr(md: string): string {
+  return md
+    .replace(/!\[.*?\]\(.*?\)/g, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/\*{1,3}(.*?)\*{1,3}/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\\([*_~`])/g, "$1")
+    .replace(/\|[-:]+\|[-:|\s]*/g, "")
+    .replace(/\|/g, " ")
+    .replace(/^[-*_]{3,}$/gm, "")
+    .replace(/[ \t]+/g, " ")
+    .split("\n").map((l) => l.trim()).filter(Boolean).join("\n")
+    .trim();
+}
+
+async function datalabOcr(base64: string, mediaType: string, datalabKey: string): Promise<string> {
+  const ext = mediaType === "image/png" ? "png" : "jpg";
+  const initRes = await httpMultipart<{
+    request_check_url?: string;
+    status?: string;
+    markdown?: string;
+  }>(
+    "https://www.datalab.to/api/v1/convert",
+    {
+      file: { base64, mediaType, filename: `receipt.${ext}` },
+      output_format: "markdown",
+      mode: "accurate",
+    },
+    { "X-API-Key": datalabKey },
+  );
+  if (!initRes.ok) {
+    throw new Error(`OCR 요청 실패 (${initRes.status})`);
+  }
+
+  let data = initRes.data;
+  if (data.request_check_url && data.status !== "complete") {
+    for (let i = 0; i < 50; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const poll = await httpJson<{ status?: string; markdown?: string }>(
+        data.request_check_url,
+        { method: "GET", headers: { "X-API-Key": datalabKey } },
+      );
+      if (!poll.ok) throw new Error(`OCR 조회 실패 (${poll.status})`);
+      if (poll.data.status === "complete") {
+        data = poll.data;
+        break;
+      }
+      if (poll.data.status === "failed") {
+        throw new Error("OCR 처리에 실패하였사옵니다");
+      }
+    }
+  }
+
+  const raw = data.markdown || "";
+  if (!raw) throw new Error("글자를 읽지 못하였사옵니다. 밝고 또렷한 사진으로 다시 올려주시옵소서.");
+  return raw;
+}
+
+async function haikuParse(cleaned: string, anthropicKey: string): Promise<ParsedReceipt & { is_receipt: boolean }> {
+  const res = await httpJson<{
+    content?: Array<{ type: string; input?: unknown }>;
+  }>(
+    "https://api.anthropic.com/v1/messages",
+    {
+      method: "POST",
+      headers: {
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: {
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        tools: [TOOL],
+        tool_choice: { type: "tool", name: "parse_receipt" },
+        messages: [
+          {
+            role: "user",
+            content: `먼저 텍스트가 지출 증빙(영수증/카드결제/배달앱/송금 캡쳐 등)인지 판단. 아니면 is_receipt=false, items=[], total=0. 맞으면 is_receipt=true로 품목명·가격·카테고리 추출(품목 1개여도 추출). 카테고리 불확실하면 null. 카테고리: food=식비 cafe=카페 transport=교통 housing=주거 living=생활 shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타\n\n${cleaned}`,
+          },
+        ],
+      },
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`AI 파싱 실패 (${res.status})`);
+  }
+  const toolUse = res.data.content?.find((c) => c.type === "tool_use");
+  if (!toolUse?.input) throw new Error("파싱 결과를 받지 못하였사옵니다");
+  return toolUse.input as ParsedReceipt & { is_receipt: boolean };
+}
+
+/** 영수증 이미지 → 파싱 결과. BYOK: Datalab + Anthropic 직접 호출. */
 export async function scanReceipt(
   base64: string,
   mediaType: string,
 ): Promise<ParsedReceipt> {
-  const res = await fetch(apiUrl("/api/receipt"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image: base64, mediaType }),
-  });
+  const { anthropic, datalab } = await getApiKeys();
+  if (!anthropic && !datalab) throw new ApiKeyMissingError("both");
+  if (!datalab) throw new ApiKeyMissingError("datalab");
+  if (!anthropic) throw new ApiKeyMissingError("anthropic");
 
-  if (!res.ok || !res.body) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `API error: ${res.status}`);
+  const rawOcr = await datalabOcr(base64, mediaType, datalab);
+  const cleaned = cleanOcr(rawOcr);
+  const parsed = await haikuParse(cleaned, anthropic);
+
+  if (parsed.is_receipt === false) {
+    throw new Error("영수증이나 결제 내역이 아닌 듯하옵니다. 지출 증빙 사진을 올려주시옵소서.");
   }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (value) buffer += decoder.decode(value, { stream: true });
-
-    let nl: number;
-    while ((nl = buffer.indexOf("\n")) >= 0) {
-      const line = buffer.slice(0, nl).trim();
-      buffer = buffer.slice(nl + 1);
-      if (!line) continue;
-      const msg = JSON.parse(line) as
-        | { type: "ping" }
-        | { type: "done"; result: ParsedReceipt }
-        | { type: "error"; error: string };
-      if (msg.type === "done") return msg.result;
-      if (msg.type === "error") throw new Error(msg.error);
-    }
-
-    if (done) break;
-  }
-
-  throw new Error("Stream ended without result");
+  return {
+    store: parsed.store,
+    date: parsed.date,
+    items: parsed.items,
+    total: parsed.total,
+  };
 }

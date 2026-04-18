@@ -61,3 +61,8 @@ supabase/.temp
 .history/
 
 .vercel
+
+# ── 안드로이드 서명 (절대 커밋 금지) ──
+android/key.properties
+*.keystore
+*.jks

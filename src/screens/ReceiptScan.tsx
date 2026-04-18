@@ -5,6 +5,7 @@ import { addTransaction } from "../lib/db";
 import { getCategoryById, EXPENSE_CATEGORIES } from "../lib/categories";
 import { formatMoney, today } from "../lib/format";
 import { isNative } from "../lib/platform";
+import { useApiKeysStatus } from "../lib/apiKeys";
 import {
   compressImage,
   scanReceipt,
@@ -15,12 +16,18 @@ import {
 type Props = {
   onDone: () => void;
   onBack: () => void;
+  onGoSettings: () => void;
 };
 
 type Status = "idle" | "compressing" | "scanning" | "done" | "error";
 
-export default function ReceiptScan({ onDone, onBack }: Props) {
+export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const keys = useApiKeysStatus();
+  const keysReady = keys.anthropic && keys.datalab;
+  const missingList: string[] = [];
+  if (!keys.datalab) missingList.push("Datalab");
+  if (!keys.anthropic) missingList.push("Anthropic");
   const [preview, setPreview] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
@@ -138,9 +145,26 @@ export default function ReceiptScan({ onDone, onBack }: Props) {
         <h1>지출 스캔</h1>
       </header>
 
+      {/* 키 누락 안내 */}
+      {keys.loaded && !keysReady && status === "idle" && (
+        <div className="keys-missing-card">
+          <div className="keys-missing-title">아직 열쇠가 모자라옵니다</div>
+          <div className="keys-missing-body">
+            지출 스캔은 <strong>{missingList.join(" · ")}</strong> 키가 있어야 하옵니다. 설정에서 간수하시옵소서.
+          </div>
+          <button className="keys-missing-btn" onClick={onGoSettings}>
+            설정으로 가기
+          </button>
+        </div>
+      )}
+
       {/* 업로드 영역 */}
       {status === "idle" && (
-        <button className="receipt-upload" onClick={handlePickClick}>
+        <button
+          className="receipt-upload"
+          onClick={handlePickClick}
+          disabled={!keysReady}
+        >
           <div className="receipt-upload-icon">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
               <rect x="4" y="6" width="24" height="20" rx="2" stroke="currentColor" strokeWidth="1.6" />
