@@ -1,0 +1,4 @@
+- Korean / English UI toggle (Settings → Language)
+- Asset tracking: add stocks, crypto, or cash and see live market values and P/L
+- AI monthly and yearly reports now include portfolio context
+- Multi-currency support: USD, KRW, EUR, JPY, GBP

@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 
 export type Tab = "home" | "history" | "coach" | "settings";
 
@@ -45,42 +46,43 @@ function SettingsIcon() {
   );
 }
 
-const leftTabs: Array<{ id: Tab; label: string; Icon: () => React.ReactElement }> = [
-  { id: "home", label: "홈", Icon: HomeIcon },
-  { id: "history", label: "장부", Icon: HistoryIcon },
+const leftTabs: Array<{ id: Tab; Icon: () => React.ReactElement }> = [
+  { id: "home", Icon: HomeIcon },
+  { id: "history", Icon: HistoryIcon },
 ];
 
-const rightTabs: Array<{ id: Tab; label: string; Icon: () => React.ReactElement }> = [
-  { id: "coach", label: "상소", Icon: CoachIcon },
-  { id: "settings", label: "설정", Icon: SettingsIcon },
+const rightTabs: Array<{ id: Tab; Icon: () => React.ReactElement }> = [
+  { id: "coach", Icon: CoachIcon },
+  { id: "settings", Icon: SettingsIcon },
 ];
 
 export default function TabBar({ current, onChange, onAdd }: Props) {
+  const { t } = useTranslation();
   return (
     <nav className="tabbar">
-      {leftTabs.map((t) => (
+      {leftTabs.map((tab) => (
         <button
-          key={t.id}
-          className={`tab ${current === t.id ? "on" : ""}`}
-          onClick={() => onChange(t.id)}
+          key={tab.id}
+          className={`tab ${current === tab.id ? "on" : ""}`}
+          onClick={() => onChange(tab.id)}
         >
-          <span className="tab-icon"><t.Icon /></span>
-          <span className="tab-label">{t.label}</span>
+          <span className="tab-icon"><tab.Icon /></span>
+          <span className="tab-label">{t(`tabs.${tab.id}`)}</span>
         </button>
       ))}
-      <button className="tab-add" onClick={onAdd} aria-label="추가">
+      <button className="tab-add" onClick={onAdd} aria-label={t("tabs.add")}>
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
           <path d="M11 4v14M4 11h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
         </svg>
       </button>
-      {rightTabs.map((t) => (
+      {rightTabs.map((tab) => (
         <button
-          key={t.id}
-          className={`tab ${current === t.id ? "on" : ""}`}
-          onClick={() => onChange(t.id)}
+          key={tab.id}
+          className={`tab ${current === tab.id ? "on" : ""}`}
+          onClick={() => onChange(tab.id)}
         >
-          <span className="tab-icon"><t.Icon /></span>
-          <span className="tab-label">{t.label}</span>
+          <span className="tab-icon"><tab.Icon /></span>
+          <span className="tab-label">{t(`tabs.${tab.id}`)}</span>
         </button>
       ))}
     </nav>

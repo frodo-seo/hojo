@@ -1,5 +1,5 @@
 import type { Transaction } from "../types";
-import { getCategoryById } from "../lib/categories";
+import { getCategoryById, categoryName } from "../lib/categories";
 import { formatMoney } from "../lib/format";
 
 type Props = {
@@ -13,9 +13,9 @@ export default function TransactionItem({ tx, onClick }: Props) {
 
   return (
     <div className="tx-item" onClick={onClick}>
-      <div className="tx-icon">{cat?.icon ?? "?"}</div>
+      <div className="tx-icon">{cat ? <cat.Icon size={18} strokeWidth={1.75} /> : null}</div>
       <div className="tx-info">
-        <div className="tx-cat">{cat?.name ?? tx.categoryId}</div>
+        <div className="tx-cat">{categoryName(tx.categoryId)}</div>
         {tx.memo && <div className="tx-memo">{tx.memo}</div>}
       </div>
       <div className={`tx-amount ${isIncome ? "income" : "expense"}`}>

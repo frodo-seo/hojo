@@ -1,53 +1,54 @@
 :root {
-  /* Surfaces — 먹빛 흑갈 dark chestnut */
-  --bg: #120E0A;
-  --bg-elevated: #1C1612;
-  --card: #1F1915;
-  --card-hover: #29211B;
-  --card-alt: #2E2520;
+  /* Surfaces — neutral near-black */
+  --bg: #0A0A0B;
+  --bg-elevated: #121316;
+  --card: #141517;
+  --card-hover: #1A1C1F;
+  --card-alt: #1F2125;
 
-  /* Text — 상아빛 농담 */
-  --ink: #EFE4CE;
-  --text: #EFE4CE;
-  --text-sub: rgba(239, 228, 206, 0.66);
-  --text-mute: rgba(239, 228, 206, 0.42);
-  --text-faint: rgba(239, 228, 206, 0.22);
+  /* Text — neutral off-white */
+  --ink: #E8EAED;
+  --text: #E8EAED;
+  --text-sub: rgba(232, 234, 237, 0.64);
+  --text-mute: rgba(232, 234, 237, 0.42);
+  --text-faint: rgba(232, 234, 237, 0.22);
 
-  /* Brand — 호박빛 고동 amber chestnut */
-  --primary: #B27A4A;
-  --primary-strong: #D49A66;
-  --primary-soft: rgba(178, 122, 74, 0.14);
-  --primary-glow: rgba(212, 154, 102, 0.28);
+  /* Brand — Foundry gold */
+  --primary: #F5B32E;
+  --primary-strong: #FFC14A;
+  --primary-soft: rgba(245, 179, 46, 0.12);
+  --primary-glow: rgba(255, 193, 74, 0.22);
 
-  /* Ink background tint */
-  --ink-soft: rgba(239, 228, 206, 0.05);
+  /* Surface tint */
+  --ink-soft: rgba(232, 234, 237, 0.04);
 
-  /* Signals — 단청-inspired muted tones, 어두운 배경에 어울리게 */
-  --income: #9AB77F;
-  --income-soft: rgba(154, 183, 127, 0.14);
-  --expense: #D07866;
-  --expense-soft: rgba(208, 120, 102, 0.14);
+  /* Semantic — muted teal / red */
+  --income: #4DB8A8;
+  --income-soft: rgba(77, 184, 168, 0.12);
+  --expense: #E85D5D;
+  --expense-soft: rgba(232, 93, 93, 0.12);
 
-  /* Borders */
-  --border: #35291E;
-  --border-light: #261E18;
+  /* Borders — visible hairlines for data density */
+  --border: #26282C;
+  --border-light: #1B1D20;
 
-  /* Radius */
-  --radius-lg: 24px;
-  --radius: 18px;
-  --radius-sm: 12px;
+  /* Radius — tighter, more engineered */
+  --radius-lg: 12px;
+  --radius: 8px;
+  --radius-sm: 4px;
 
-  /* Elevation — deep ink shadows + hairline for dark surfaces */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.40), inset 0 0 0 1px rgba(239, 228, 206, 0.03);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(239, 228, 206, 0.035);
-  --shadow: 0 2px 4px rgba(0, 0, 0, 0.40), 0 10px 24px rgba(0, 0, 0, 0.50), inset 0 0 0 1px rgba(239, 228, 206, 0.04);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.40), 0 20px 48px rgba(0, 0, 0, 0.60), inset 0 0 0 1px rgba(239, 228, 206, 0.05);
-  --shadow-primary: 0 6px 18px rgba(178, 122, 74, 0.42);
+  /* Elevation — flat; rely on borders, not shadows */
+  --shadow-xs: inset 0 0 0 1px var(--border-light);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30), inset 0 0 0 1px var(--border-light);
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.40), inset 0 0 0 1px var(--border);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.50), inset 0 0 0 1px var(--border);
+  --shadow-primary: 0 0 0 1px var(--primary), 0 4px 12px rgba(245, 179, 46, 0.24);
 
-  /* Typography */
-  --sans: "Pretendard Variable", Pretendard, -apple-system,
+  /* Typography — sans for UI, mono for numbers */
+  --sans: "Inter", "Pretendard Variable", Pretendard, -apple-system,
     BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
-  --serif: "Gowun Batang", "Noto Serif KR", "Nanum Myeongjo", serif;
+  --mono: "JetBrains Mono", "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  --serif: var(--sans);
 }
 
 * {
@@ -57,11 +58,11 @@
 }
 
 html, body {
-  font-family: var(--serif);
+  font-family: var(--sans);
   background: var(--bg);
   color: var(--text);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
@@ -84,6 +85,19 @@ input, select {
 
 ul, li {
   list-style: none;
+}
+
+/* Lucide SVG icons — keep them flex-friendly and shrink-proof */
+svg {
+  flex-shrink: 0;
+  display: block;
+}
+
+/* Monospace for numeric data */
+.num, [data-num] {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 ::selection {

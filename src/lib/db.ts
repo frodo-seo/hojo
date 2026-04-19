@@ -1,7 +1,7 @@
-import type { Transaction, Budget, FixedIncome, FixedExpense } from "../types";
+import type { Transaction, Budget, FixedIncome, FixedExpense, Asset } from "../types";
 
 const DB_NAME = "sobi-ilgi";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -24,6 +24,9 @@ function open(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains("fixed_expense")) {
         db.createObjectStore("fixed_expense", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("assets")) {
+        db.createObjectStore("assets", { keyPath: "id" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -146,6 +149,29 @@ export async function addFixedExpense(item: FixedExpense): Promise<void> {
 
 export async function deleteFixedExpense(id: string): Promise<void> {
   const store = await tx("fixed_expense", "readwrite");
+  await req(store.delete(id));
+}
+
+// --- Assets ---
+
+export async function getAssets(): Promise<Asset[]> {
+  const store = await tx("assets", "readonly");
+  const list = await req(store.getAll());
+  return list.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+}
+
+export async function addAsset(asset: Asset): Promise<void> {
+  const store = await tx("assets", "readwrite");
+  await req(store.put(asset));
+}
+
+export async function updateAsset(asset: Asset): Promise<void> {
+  const store = await tx("assets", "readwrite");
+  await req(store.put(asset));
+}
+
+export async function deleteAsset(id: string): Promise<void> {
+  const store = await tx("assets", "readwrite");
   await req(store.delete(id));
 }
 

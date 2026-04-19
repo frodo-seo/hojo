@@ -1,18 +1,25 @@
 /**
- * 매일 저녁 9시 "장부 펼치시옵소서" 알림.
+ * 매일 저녁 9시 기록 알림.
  * - 권한 요청은 유저가 Settings에서 토글할 때만 진행.
  * - 스케줄링은 setTimeout 기반 (앱이 열려있거나 백그라운드에 있을 때만 동작).
- * - PWA/TWA 환경에서 SW push를 쓰려면 서버 인프라 필요 → MVP는 로컬 노티로 충분.
  */
+
+import { currentLang } from "./i18n";
 
 const KEY_ENABLED = "reminder_enabled";
 const KEY_LAST_FIRED = "reminder_last_fired";
 const REMINDER_HOUR = 21;
-const MESSAGES = [
-  "전하, 오늘 장부를 펼치시옵소서.",
-  "소신 호조, 전하의 오늘 장부를 기다리옵나이다.",
-  "하루의 쓰임을 헤아리시옵소서.",
-  "전하, 저녁 상소를 위해 오늘의 기록을 올려주시옵소서.",
+const MESSAGES_KO = [
+  "오늘의 지출을 기록해보세요.",
+  "하루를 정리할 시간입니다.",
+  "오늘 쓴 금액을 확인해보세요.",
+  "잊기 전에 오늘의 기록을 남겨보세요.",
+];
+const MESSAGES_EN = [
+  "Log today's spending.",
+  "Time to wrap up the day.",
+  "Check what you spent today.",
+  "Capture today's entries before you forget.",
 ];
 
 export function isReminderEnabled(): boolean {
@@ -57,8 +64,9 @@ function fire() {
   if (lastFired === todayKey()) return;
   if (Notification.permission !== "granted") return;
   try {
-    const msg = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
-    new Notification("호조", {
+    const pool = currentLang() === "en" ? MESSAGES_EN : MESSAGES_KO;
+    const msg = pool[Math.floor(Math.random() * pool.length)];
+    new Notification("Hojo", {
       body: msg,
       icon: "/icon-192.svg",
       badge: "/icon-192.svg",

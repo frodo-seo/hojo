@@ -1,17 +1,73 @@
 import { getApiKeys } from "./apiKeys";
 import { httpJson } from "./http";
 import { ApiKeyMissingError } from "./receipt";
+import { currentLang } from "./i18n";
 
-const PERSONA = `너는 조선시대 호조판서(戶曹判書)이다. 전하의 한 달(혹은 한 해) 가계 장부를 친히 살핀 뒤, 전하께 올리는 상소문(上疏文)을 쓴다.
+const PERSONA_KO = `당신은 개인 재정 데이터를 분석하는 애널리스트입니다. 사용자의 월간/연간 지출 데이터를 바탕으로 간결하고 신뢰할 수 있는 리포트를 작성합니다.
 
 【문체 규칙】
-- 상소문 어투를 사용하되, 현대인이 어렵지 않게 읽을 수 있는 수준의 문어체로.
-- 서두는 "전하, 이달의 가계를 살피어 아뢰옵나이다." 같은 격식을 갖춘 인사로 시작.
-- 문장 끝은 "~이옵니다 / ~하옵니다 / ~하시옵소서 / ~하심이 마땅하옵니다" 같은 종결 혼용.
-- 맺음은 겸양된 어조로 ("소신, 삼가 올리옵나이다." 등).
-- 판서의 관점에서 칭찬할 바는 치하하고, 경계할 바는 간언(諫言)하라.
-- 구체적 숫자는 반드시 본문에 인용하라.
-- 이모지·마크다운 기호·이스케이프 금지. 순수 한국어 문장만.`;
+- 정중하되 드라이한 분석적 문체. 존댓말 사용.
+- 불필요한 수식 없이 관찰된 사실 중심.
+- 구체적 숫자를 본문에 인용할 것.
+- 과장된 칭찬이나 질책 금지. 객관적 관찰·시사점만.
+- 이모지·마크다운 기호 금지. 문단은 빈 줄로 구분.`;
+
+const PERSONA_EN = `You are an analyst reviewing personal financial data. Write concise, trustworthy reports based on the user's monthly or yearly spending data.
+
+[Style rules]
+- Measured, dry, analytical tone. Plain declarative sentences.
+- Stick to observed facts; no filler.
+- Quote specific numbers inline.
+- No exaggerated praise or blame. Objective observations and implications only.
+- No emoji, no markdown symbols. Separate paragraphs with blank lines.`;
+
+function buildPrompt(stats: string, type: "monthly" | "yearly", year?: string): string {
+  const lang = currentLang();
+  const persona = lang === "en" ? PERSONA_EN : PERSONA_KO;
+  const isYearly = type === "yearly";
+
+  if (lang === "en") {
+    return isYearly
+      ? `${persona}
+
+[Task]
+Write an annual report analyzing ${year} spending data.
+- Length: around 8-10 lines.
+- Cover: month-by-month flow and shifts, lowest/highest spend months, yearly total with major category shares, two recommendations for next year.
+
+[Data]
+${stats}`
+      : `${persona}
+
+[Task]
+Write a monthly report analyzing this month's spending data.
+- Length: 5-7 lines.
+- Cover: key figures, one or two notable patterns, one actionable recommendation.
+
+[Data]
+${stats}`;
+  }
+
+  return isYearly
+    ? `${persona}
+
+【과제】
+${year}년 한 해 지출 데이터를 분석한 연간 리포트 작성.
+- 분량: 8~10줄 내외.
+- 포함: 월별 흐름과 변화, 최소/최대 지출월, 연간 총지출과 주요 카테고리 비중, 내년을 위한 권고 2가지.
+
+【데이터】
+${stats}`
+    : `${persona}
+
+【과제】
+이번 달 지출 데이터를 분석한 월간 리포트 작성.
+- 분량: 5~7줄.
+- 포함: 핵심 수치, 주목할 패턴 1~2개, 실질적 권고 1가지.
+
+【데이터】
+${stats}`;
+}
 
 export async function generateMemorial(
   stats: string,
@@ -22,25 +78,8 @@ export async function generateMemorial(
   if (!anthropic) throw new ApiKeyMissingError("anthropic");
 
   const isYearly = type === "yearly";
-  const prompt = isYearly
-    ? `${PERSONA}
-
-【임무】
-${year}년 한 해의 가계 장부를 총람하여 연말 상소를 올려라.
-- 분량: 한국어 10줄 이내.
-- 포함: 월별 흐름과 변화, 가장 알뜰했던 달과 과히 쓰신 달, 연간 총 지출과 주요 항목 비중, 내년을 위한 방책 두 가지.
-
-【장부】
-${stats}`
-    : `${PERSONA}
-
-【임무】
-이달의 가계를 살피고 상소를 올려라.
-- 분량: 한국어 5~7줄.
-- 포함: 구체적 숫자, 치하할 점과 경계할 점, 실질적 절약 방책 한 가지.
-
-【장부】
-${stats}`;
+  const prompt = buildPrompt(stats, type, year);
+  const lang = currentLang();
 
   const res = await httpJson<{ content?: Array<{ type: string; text?: string }> }>(
     "https://api.anthropic.com/v1/messages",
@@ -59,8 +98,13 @@ ${stats}`;
     },
   );
 
-  if (!res.ok) throw new Error(`AI 분석 실패 (${res.status})`);
+  if (!res.ok) {
+    const msg = lang === "en" ? `AI analysis failed (${res.status})` : `AI 분석 실패 (${res.status})`;
+    throw new Error(msg);
+  }
   const text = res.data.content?.[0]?.text || "";
-  if (!text) throw new Error("상소문을 받지 못하였사옵니다");
+  if (!text) {
+    throw new Error(lang === "en" ? "No report returned" : "리포트를 받지 못했습니다");
+  }
   return text;
 }

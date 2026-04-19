@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { subscribeNotifications } from "./lib/notifications";
 import type { Transaction } from "./types";
 import Home from "./screens/Home";
@@ -7,6 +8,7 @@ import History from "./screens/History";
 import Coach from "./screens/Coach";
 import Settings from "./screens/Settings";
 import ReceiptScan from "./screens/ReceiptScan";
+import Assets from "./screens/Assets";
 import Onboarding from "./screens/Onboarding";
 import TabBar, { type Tab } from "./components/TabBar";
 import "./App.css";
@@ -14,9 +16,11 @@ import "./App.css";
 type Screen =
   | { name: "tabs"; tab: Tab }
   | { name: "add"; editTx?: Transaction }
-  | { name: "receipt" };
+  | { name: "receipt" }
+  | { name: "assets" };
 
 export default function App() {
+  const { t } = useTranslation();
   const [screen, setScreen] = useState<Screen>({ name: "tabs", tab: "home" });
   const [refresh, setRefresh] = useState(0);
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -54,7 +58,7 @@ export default function App() {
   return (
     <div className="app-frame">
       {screen.name === "tabs" && screen.tab === "home" && (
-        <Home refresh={refresh} onEditTx={openAdd} />
+        <Home refresh={refresh} onEditTx={openAdd} onOpenAssets={() => setScreen({ name: "assets" })} />
       )}
       {screen.name === "tabs" && screen.tab === "history" && (
         <History refresh={refresh} onEditTx={openAdd} />
@@ -80,6 +84,12 @@ export default function App() {
           onDone={afterSave}
           onBack={() => setScreen({ name: "tabs", tab: "home" })}
           onGoSettings={() => setScreen({ name: "tabs", tab: "settings" })}
+        />
+      )}
+      {screen.name === "assets" && (
+        <Assets
+          refresh={refresh}
+          onBack={() => setScreen({ name: "tabs", tab: "home" })}
         />
       )}
 
@@ -110,8 +120,8 @@ export default function App() {
                 </svg>
               </div>
               <div className="sheet-option-text">
-                <span className="sheet-option-title">지출 스캔</span>
-                <span className="sheet-option-sub">영수증, 결제 캡쳐 등 사진으로 자동 입력</span>
+                <span className="sheet-option-title">{t("addSheet.scanTitle")}</span>
+                <span className="sheet-option-sub">{t("addSheet.scanSub")}</span>
               </div>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="sheet-option-arrow">
                 <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -127,8 +137,8 @@ export default function App() {
                 </svg>
               </div>
               <div className="sheet-option-text">
-                <span className="sheet-option-title">직접 입력</span>
-                <span className="sheet-option-sub">금액과 카테고리 직접 선택</span>
+                <span className="sheet-option-title">{t("addSheet.manualTitle")}</span>
+                <span className="sheet-option-sub">{t("addSheet.manualSub")}</span>
               </div>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="sheet-option-arrow">
                 <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />

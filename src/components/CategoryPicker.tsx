@@ -1,5 +1,5 @@
 import type { TransactionType } from "../types";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "../lib/categories";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, categoryName } from "../lib/categories";
 
 type Props = {
   type: TransactionType;
@@ -19,8 +19,8 @@ export default function CategoryPicker({ type, selected, onSelect }: Props) {
           className={`cat-btn ${selected === c.id ? "on" : ""}`}
           onClick={() => onSelect(c.id)}
         >
-          <span className="cat-icon">{c.icon}</span>
-          <span className="cat-name">{c.name}</span>
+          <span className="cat-icon"><c.Icon size={20} strokeWidth={1.75} /></span>
+          <span className="cat-name">{categoryName(c.id)}</span>
         </button>
       ))}
     </div>

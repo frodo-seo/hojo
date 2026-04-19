@@ -1,5 +1,10 @@
 import { getApiKeys } from "./apiKeys";
 import { httpJson, httpMultipart } from "./http";
+import { currentLang } from "./i18n";
+
+function msg(ko: string, en: string): string {
+  return currentLang() === "en" ? en : ko;
+}
 
 /** 이미지를 최대 1280px로 리사이즈 후 base64 반환 */
 export function compressImage(
@@ -133,7 +138,7 @@ async function datalabOcr(base64: string, mediaType: string, datalabKey: string)
     { "X-API-Key": datalabKey },
   );
   if (!initRes.ok) {
-    throw new Error(`OCR 요청 실패 (${initRes.status})`);
+    throw new Error(msg(`OCR 요청 실패 (${initRes.status})`, `OCR request failed (${initRes.status})`));
   }
 
   let data = initRes.data;
@@ -144,19 +149,22 @@ async function datalabOcr(base64: string, mediaType: string, datalabKey: string)
         data.request_check_url,
         { method: "GET", headers: { "X-API-Key": datalabKey } },
       );
-      if (!poll.ok) throw new Error(`OCR 조회 실패 (${poll.status})`);
+      if (!poll.ok) throw new Error(msg(`OCR 조회 실패 (${poll.status})`, `OCR poll failed (${poll.status})`));
       if (poll.data.status === "complete") {
         data = poll.data;
         break;
       }
       if (poll.data.status === "failed") {
-        throw new Error("OCR 처리에 실패하였사옵니다");
+        throw new Error(msg("OCR 처리에 실패했습니다", "OCR processing failed"));
       }
     }
   }
 
   const raw = data.markdown || "";
-  if (!raw) throw new Error("글자를 읽지 못하였사옵니다. 밝고 또렷한 사진으로 다시 올려주시옵소서.");
+  if (!raw) throw new Error(msg(
+    "글자를 읽지 못했습니다. 더 밝고 또렷한 사진으로 다시 시도해주세요.",
+    "Couldn't read any text. Try a brighter, sharper photo.",
+  ));
   return raw;
 }
 
@@ -187,10 +195,10 @@ async function haikuParse(cleaned: string, anthropicKey: string): Promise<Parsed
     },
   );
   if (!res.ok) {
-    throw new Error(`AI 파싱 실패 (${res.status})`);
+    throw new Error(msg(`AI 파싱 실패 (${res.status})`, `AI parsing failed (${res.status})`));
   }
   const toolUse = res.data.content?.find((c) => c.type === "tool_use");
-  if (!toolUse?.input) throw new Error("파싱 결과를 받지 못하였사옵니다");
+  if (!toolUse?.input) throw new Error(msg("파싱 결과를 받지 못했습니다", "No parse result returned"));
   return toolUse.input as ParsedReceipt & { is_receipt: boolean };
 }
 
@@ -209,7 +217,10 @@ export async function scanReceipt(
   const parsed = await haikuParse(cleaned, anthropic);
 
   if (parsed.is_receipt === false) {
-    throw new Error("영수증이나 결제 내역이 아닌 듯하옵니다. 지출 증빙 사진을 올려주시옵소서.");
+    throw new Error(msg(
+      "영수증이나 결제 내역이 아닌 것 같습니다. 지출 증빙 사진을 올려주세요.",
+      "This doesn't look like a receipt or payment record. Please upload an expense proof.",
+    ));
   }
   return {
     store: parsed.store,

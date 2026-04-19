@@ -1,0 +1,1 @@
+Serverless expense tracker. Data stays local, AI runs on your own API keys.

@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.hojo.app',
-  appName: '호조',
+  appName: 'Hojo',
   webDir: 'dist',
   android: {
     allowMixedContent: false,
@@ -13,13 +13,13 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
-      backgroundColor: '#f5ecd7',
+      backgroundColor: '#0A0A0B',
       androidSplashResourceName: 'splash',
       showSpinner: false,
     },
     StatusBar: {
-      style: 'DARK',
-      backgroundColor: '#f5ecd7',
+      style: 'LIGHT',
+      backgroundColor: '#0A0A0B',
     },
   },
 };

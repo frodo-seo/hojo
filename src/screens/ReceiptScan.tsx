@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import type { Transaction } from "../types";
 import { addTransaction } from "../lib/db";
-import { getCategoryById, EXPENSE_CATEGORIES } from "../lib/categories";
+import { getCategoryById, EXPENSE_CATEGORIES, categoryName } from "../lib/categories";
 import { formatMoney, today } from "../lib/format";
 import { isNative } from "../lib/platform";
 import { useApiKeysStatus } from "../lib/apiKeys";
@@ -22,6 +23,7 @@ type Props = {
 type Status = "idle" | "compressing" | "scanning" | "done" | "error";
 
 export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
+  const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
   const keys = useApiKeysStatus();
   const keysReady = keys.anthropic && keys.datalab;
@@ -51,7 +53,7 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
       setItems(parsed.items);
       setStatus("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "스캔에 실패했습니다");
+      setError(err instanceof Error ? err.message : t("receipt.scanFailed"));
       setStatus("error");
     }
   }
@@ -68,7 +70,7 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
         correctOrientation: true,
       });
 
-      if (!photo.base64String) throw new Error("이미지를 가져오지 못했어요");
+      if (!photo.base64String) throw new Error(t("receipt.imageFailed"));
 
       const mediaType = `image/${photo.format || "jpeg"}`;
       setPreview(`data:${mediaType};base64,${photo.base64String}`);
@@ -79,7 +81,7 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
       setItems(parsed.items);
       setStatus("done");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "스캔에 실패했습니다";
+      const msg = err instanceof Error ? err.message : t("receipt.scanFailed");
       if (msg.includes("cancel")) {
         setStatus("idle");
         return;
@@ -142,18 +144,18 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
             <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1>지출 스캔</h1>
+        <h1>{t("receipt.title")}</h1>
       </header>
 
       {/* 키 누락 안내 */}
       {keys.loaded && !keysReady && status === "idle" && (
         <div className="keys-missing-card">
-          <div className="keys-missing-title">아직 열쇠가 모자라옵니다</div>
+          <div className="keys-missing-title">{t("apiKeys.missingTitle")}</div>
           <div className="keys-missing-body">
-            지출 스캔은 <strong>{missingList.join(" · ")}</strong> 키가 있어야 하옵니다. 설정에서 간수하시옵소서.
+            {t("apiKeys.receiptMissingBody", { keys: missingList.join(" · ") })}
           </div>
           <button className="keys-missing-btn" onClick={onGoSettings}>
-            설정으로 가기
+            {t("apiKeys.goSettings")}
           </button>
         </div>
       )}
@@ -172,8 +174,8 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
               <path d="M4 22l6-6 4 4 6-6 8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <span className="receipt-upload-title">지출 이미지를 선택하세요</span>
-          <span className="receipt-upload-sub">영수증, 결제 알림, 배달앱 캡쳐 등</span>
+          <span className="receipt-upload-title">{t("receipt.uploadTitle")}</span>
+          <span className="receipt-upload-sub">{t("receipt.uploadSub")}</span>
         </button>
       )}
 
@@ -189,11 +191,11 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
       {/* 프리뷰 + 로딩 */}
       {preview && status !== "idle" && status !== "done" && (
         <div className="receipt-preview-wrap">
-          <img src={preview} alt="영수증" className="receipt-preview" />
+          <img src={preview} alt="" className="receipt-preview" />
           {(status === "compressing" || status === "scanning") && (
             <div className="receipt-loading">
               <div className="receipt-spinner" />
-              <span>{status === "compressing" ? "이미지를 다듬는 중이옵니다..." : "호조가 장부를 살피는 중이옵니다..."}</span>
+              <span>{status === "compressing" ? t("receipt.compressing") : t("receipt.scanning")}</span>
             </div>
           )}
         </div>
@@ -211,7 +213,7 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
               if (fileRef.current) fileRef.current.value = "";
             }}
           >
-            다시 시도
+            {t("common.retry")}
           </button>
         </div>
       )}
@@ -221,14 +223,14 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
         <>
           {result?.store && (
             <div className="receipt-store">
-              <span className="receipt-store-label">매장</span>
+              <span className="receipt-store-label">{t("receipt.store")}</span>
               <span className="receipt-store-name">{result.store}</span>
             </div>
           )}
 
           {hasUnset && (
             <div className="receipt-unset-notice">
-              카테고리를 선택해주세요
+              {t("receipt.pickCategoryPrompt")}
             </div>
           )}
 
@@ -239,7 +241,9 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
               return (
                 <div key={idx} className={`receipt-item ${isUnset ? "unset" : ""}`}>
                   <div className="receipt-item-main">
-                    <span className="receipt-item-icon">{cat?.icon ?? "❓"}</span>
+                    <span className="receipt-item-icon">
+                      {cat ? <cat.Icon size={18} strokeWidth={1.75} /> : null}
+                    </span>
                     <div className="receipt-item-info">
                       <span className="receipt-item-name">{item.name}</span>
                       <select
@@ -247,10 +251,10 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
                         value={item.category || ""}
                         onChange={(e) => updateCategory(idx, e.target.value)}
                       >
-                        {isUnset && <option value="">카테고리 선택</option>}
+                        {isUnset && <option value="">{t("receipt.pickCategory")}</option>}
                         {EXPENSE_CATEGORIES.map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.icon} {c.name}
+                            {categoryName(c.id)}
                           </option>
                         ))}
                       </select>
@@ -268,7 +272,7 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
           </div>
 
           <div className="receipt-total">
-            <span>합계 ({items.length}건)</span>
+            <span>{t("receipt.total", { count: items.length })}</span>
             <span className="receipt-total-amount">{formatMoney(totalAmount)}</span>
           </div>
 
@@ -277,14 +281,18 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
             onClick={handleSaveAll}
             disabled={saving || items.length === 0 || hasUnset}
           >
-            {saving ? "저장 중..." : hasUnset ? "카테고리를 선택해주세요" : `${items.length}건 전체 저장`}
+            {saving
+              ? t("common.saving")
+              : hasUnset
+              ? t("receipt.pickCategoryPrompt")
+              : t("receipt.saveAll", { count: items.length })}
           </button>
         </>
       )}
 
       {status === "done" && items.length === 0 && (
         <div className="empty">
-          <p>인식된 품목이 없습니다</p>
+          <p>{t("receipt.noItems")}</p>
           <button
             className="receipt-retry"
             onClick={() => {
@@ -293,7 +301,7 @@ export default function ReceiptScan({ onDone, onBack, onGoSettings }: Props) {
               if (fileRef.current) fileRef.current.value = "";
             }}
           >
-            다시 시도
+            {t("common.retry")}
           </button>
         </div>
       )}

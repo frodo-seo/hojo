@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getBudget, setBudget, deleteBudget,
   getFixedIncomes, addFixedIncome, deleteFixedIncome,
@@ -7,36 +8,39 @@ import {
 } from "../lib/db";
 import type { FixedIncome, FixedExpense } from "../types";
 import { currentMonth, formatMoney, getMonthLabel, formatAmountInput, parseAmountInput, amountKoreanWord } from "../lib/format";
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, getCategoryById } from "../lib/categories";
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, categoryName } from "../lib/categories";
 import { isReminderEnabled, enableReminder, disableReminder } from "../lib/reminder";
 import { getApiKeys, setAnthropicKey, setDatalabKey, maskKey } from "../lib/apiKeys";
 import { isListenerEnabled, openListenerSettings } from "../lib/notifications";
 import { isNative } from "../lib/platform";
+import { setLang, currentLang, SUPPORTED_LANGS, type Lang } from "../lib/i18n";
+import { getBaseCurrency, setBaseCurrency } from "../lib/settings";
+import type { Currency } from "../types";
+
+const BASE_CURRENCIES: Currency[] = ["KRW", "USD", "EUR", "JPY", "GBP"];
 
 type Props = { refresh: number; onRefresh: () => void };
 
 export default function Settings({ refresh, onRefresh }: Props) {
+  const { t, i18n } = useTranslation();
   const month = currentMonth();
+  const [lang, setLangState] = useState<Lang>(currentLang());
+  const [baseCcy, setBaseCcyState] = useState<Currency>(getBaseCurrency());
   const [budgetAmount, setBudgetAmount] = useState("");
   const [currentBudget, setCurrentBudget] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
 
-  // 고정수입
   const [fixedList, setFixedList] = useState<FixedIncome[]>([]);
   const [newName, setNewName] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newCat, setNewCat] = useState("salary");
   const [incomeSaved, setIncomeSaved] = useState(false);
 
-  // 고정지출
-  // 알림
   const [reminderOn, setReminderOn] = useState(isReminderEnabled());
   const [reminderMsg, setReminderMsg] = useState("");
 
-  // 알림 리스너 (자동 기록)
   const [listenerOn, setListenerOn] = useState(false);
 
-  // API 키
   const [anthKey, setAnthKey] = useState("");
   const [dataKey, setDataKey] = useState("");
   const [anthSaved, setAnthSaved] = useState("");
@@ -56,14 +60,14 @@ export default function Settings({ refresh, onRefresh }: Props) {
     getBudget(month).then((b) => {
       if (b) {
         setCurrentBudget(b.amount);
-        setBudgetAmount(b.amount.toLocaleString("ko-KR"));
+        setBudgetAmount(b.amount.toLocaleString());
       } else {
         setCurrentBudget(null);
         setBudgetAmount("");
       }
     });
-    loadFixed();
-    loadFixedExp();
+    getFixedIncomes().then(setFixedList);
+    getFixedExpenses().then((list) => setFixedExpList(list.sort((a, b) => a.day - b.day)));
     getApiKeys().then((k) => {
       setAnthSaved(k.anthropic);
       setDataSaved(k.datalab);
@@ -76,21 +80,21 @@ export default function Settings({ refresh, onRefresh }: Props) {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [month, refresh]);
+  }, [month, refresh, lang]);
 
   async function handleSaveAnthKey() {
     await setAnthropicKey(anthKey);
     setAnthSaved(anthKey);
     setAnthKey("");
     setShowAnth(false);
-    setKeysMsg("Anthropic 키를 간수하였사옵니다");
+    setKeysMsg(t("apiKeys.anthropicSaved"));
     setTimeout(() => setKeysMsg(""), 2000);
   }
 
   async function handleClearAnthKey() {
     await setAnthropicKey("");
     setAnthSaved("");
-    setKeysMsg("Anthropic 키를 지웠사옵니다");
+    setKeysMsg(t("apiKeys.anthropicDeleted"));
     setTimeout(() => setKeysMsg(""), 2000);
   }
 
@@ -99,15 +103,26 @@ export default function Settings({ refresh, onRefresh }: Props) {
     setDataSaved(dataKey);
     setDataKey("");
     setShowData(false);
-    setKeysMsg("Datalab 키를 간수하였사옵니다");
+    setKeysMsg(t("apiKeys.datalabSaved"));
     setTimeout(() => setKeysMsg(""), 2000);
   }
 
   async function handleClearDataKey() {
     await setDatalabKey("");
     setDataSaved("");
-    setKeysMsg("Datalab 키를 지웠사옵니다");
+    setKeysMsg(t("apiKeys.datalabDeleted"));
     setTimeout(() => setKeysMsg(""), 2000);
+  }
+
+  function handleLangChange(next: Lang) {
+    setLang(next);
+    setLangState(next);
+  }
+
+  function handleBaseCcyChange(next: Currency) {
+    setBaseCurrency(next);
+    setBaseCcyState(next);
+    onRefresh();
   }
 
   async function loadFixed() {
@@ -193,14 +208,14 @@ export default function Settings({ refresh, onRefresh }: Props) {
     if (reminderOn) {
       disableReminder();
       setReminderOn(false);
-      setReminderMsg("알림을 껐사옵니다");
+      setReminderMsg(t("reminder.disabledMsg"));
     } else {
       const ok = await enableReminder();
       if (ok) {
         setReminderOn(true);
-        setReminderMsg("매일 저녁 9시에 아뢰겠나이다");
+        setReminderMsg(t("reminder.enabledMsg"));
       } else {
-        setReminderMsg("알림 권한이 허락되지 않았사옵니다");
+        setReminderMsg(t("reminder.deniedMsg"));
       }
     }
     setTimeout(() => setReminderMsg(""), 2000);
@@ -211,16 +226,16 @@ export default function Settings({ refresh, onRefresh }: Props) {
     if (all.length === 0) return;
 
     const BOM = "\uFEFF";
-    const header = "날짜,유형,카테고리,금액,메모";
-    const rows = all.map((t) => {
-      const cat = getCategoryById(t.categoryId);
-      const type = t.type === "income" ? "수입" : "지출";
-      const memo = (t.memo ?? "").replace(/"/g, '""');
-      return `${t.date},${type},${cat?.name ?? t.categoryId},${t.amount},"${memo}"`;
+    const header = t("export.csvHeader");
+    const rows = all.map((tx) => {
+      const type = tx.type === "income" ? t("export.typeIncome") : t("export.typeExpense");
+      const memo = (tx.memo ?? "").replace(/"/g, '""');
+      return `${tx.date},${type},${categoryName(tx.categoryId)},${tx.amount},"${memo}"`;
     });
     const csv = BOM + header + "\n" + rows.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const file = new File([blob], `소비일기_${currentMonth()}.csv`, { type: "text/csv" });
+    const fileName = t("export.fileName", { month: currentMonth() });
+    const file = new File([blob], fileName, { type: "text/csv" });
 
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       navigator.share({ files: [file] });
@@ -234,19 +249,22 @@ export default function Settings({ refresh, onRefresh }: Props) {
     }
   }
 
+  const amountUnit = t("format.amountUnit");
+  void i18n;
+
   return (
     <div className="screen">
       <header className="settings-header">
-        <h1>설정</h1>
+        <h1>{t("settings.title")}</h1>
       </header>
 
       <section className="settings-section">
         <h2 className="section-title">
-          {getMonthLabel(month)} 예산
+          {t("budget.sectionTitle", { month: getMonthLabel(month) })}
         </h2>
         {currentBudget !== null && (
           <div className="current-budget">
-            현재 예산: <strong>{formatMoney(currentBudget)}</strong>
+            {t("budget.current")}: <strong>{formatMoney(currentBudget)}</strong>
           </div>
         )}
         <div className="budget-form">
@@ -254,23 +272,23 @@ export default function Settings({ refresh, onRefresh }: Props) {
             <input
               type="text"
               className="form-input"
-              placeholder="예산 금액"
+              placeholder={t("budget.inputPlaceholder")}
               value={budgetAmount}
               onChange={(e) => setBudgetAmount(formatAmountInput(e.target.value))}
               inputMode="numeric"
             />
-            <span className="budget-unit">원</span>
+            {amountUnit && <span className="budget-unit">{amountUnit}</span>}
           </div>
           {amountKoreanWord(parseAmountInput(budgetAmount)) && (
             <p className="amount-hint">{amountKoreanWord(parseAmountInput(budgetAmount))}</p>
           )}
           <div className="budget-actions">
             <button className="save-btn small" onClick={handleSaveBudget}>
-              {saved ? "저장됨!" : "예산 설정"}
+              {saved ? t("budget.saved") : t("budget.setButton")}
             </button>
             {currentBudget !== null && (
               <button className="delete-btn-text" onClick={handleDeleteBudget}>
-                예산 삭제
+                {t("budget.deleteButton")}
               </button>
             )}
           </div>
@@ -278,8 +296,8 @@ export default function Settings({ refresh, onRefresh }: Props) {
       </section>
 
       <section className="settings-section">
-        <h2 className="section-title">고정 수입</h2>
-        <p className="section-desc">매달 자동으로 수입에 반영됩니다.</p>
+        <h2 className="section-title">{t("fixedIncome.title")}</h2>
+        <p className="section-desc">{t("fixedIncome.desc")}</p>
 
         {fixedList.length > 0 && (
           <div className="fixed-list">
@@ -287,10 +305,10 @@ export default function Settings({ refresh, onRefresh }: Props) {
               const cat = INCOME_CATEGORIES.find((c) => c.id === item.categoryId);
               return (
                 <div key={item.id} className="fixed-item">
-                  <span className="fixed-item-icon">{cat?.icon ?? "💰"}</span>
+                  <span className="fixed-item-icon">{cat ? <cat.Icon size={18} strokeWidth={1.75} /> : null}</span>
                   <div className="fixed-item-info">
                     <span className="fixed-item-name">{item.name}</span>
-                    <span className="fixed-item-cat">{cat?.name ?? item.categoryId}</span>
+                    <span className="fixed-item-cat">{categoryName(item.categoryId)}</span>
                   </div>
                   <span className="fixed-item-amount">{formatMoney(item.amount)}</span>
                   <button className="fixed-item-del" onClick={() => handleDeleteFixed(item.id)}>
@@ -308,7 +326,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
           <input
             type="text"
             className="form-input"
-            placeholder="이름 (예: 급여)"
+            placeholder={t("fixedIncome.namePlaceholder")}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
@@ -317,12 +335,12 @@ export default function Settings({ refresh, onRefresh }: Props) {
               <input
                 type="text"
                 className="form-input"
-                placeholder="금액"
+                placeholder={t("fixedIncome.amountPlaceholder")}
                 value={newAmount}
                 onChange={(e) => setNewAmount(formatAmountInput(e.target.value))}
                 inputMode="numeric"
               />
-              <span className="budget-unit">원</span>
+              {amountUnit && <span className="budget-unit">{amountUnit}</span>}
             </div>
             <select
               className="form-input fixed-cat-select"
@@ -331,7 +349,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
             >
               {INCOME_CATEGORIES.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.icon} {c.name}
+                  {categoryName(c.id)}
                 </option>
               ))}
             </select>
@@ -344,14 +362,14 @@ export default function Settings({ refresh, onRefresh }: Props) {
             onClick={handleAddFixed}
             disabled={!newName.trim() || parseAmountInput(newAmount) <= 0}
           >
-            {incomeSaved ? "추가됨!" : "고정 수입 추가"}
+            {incomeSaved ? t("fixedIncome.added") : t("fixedIncome.addButton")}
           </button>
         </div>
       </section>
 
       <section className="settings-section">
-        <h2 className="section-title">고정 지출</h2>
-        <p className="section-desc">매달 지정한 날짜에 자동으로 지출에 반영됩니다.</p>
+        <h2 className="section-title">{t("fixedExpense.title")}</h2>
+        <p className="section-desc">{t("fixedExpense.desc")}</p>
 
         {fixedExpList.length > 0 && (
           <div className="fixed-list">
@@ -359,11 +377,11 @@ export default function Settings({ refresh, onRefresh }: Props) {
               const cat = EXPENSE_CATEGORIES.find((c) => c.id === item.categoryId);
               return (
                 <div key={item.id} className="fixed-item">
-                  <span className="fixed-item-icon">{cat?.icon ?? "📦"}</span>
+                  <span className="fixed-item-icon">{cat ? <cat.Icon size={18} strokeWidth={1.75} /> : null}</span>
                   <div className="fixed-item-info">
                     <span className="fixed-item-name">{item.name}</span>
                     <span className="fixed-item-cat">
-                      매월 {item.day}일 · {cat?.name ?? item.categoryId}
+                      {t("fixedExpense.monthlyOn", { day: item.day })} · {categoryName(item.categoryId)}
                     </span>
                   </div>
                   <span className="fixed-item-amount expense">{formatMoney(item.amount)}</span>
@@ -382,7 +400,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
           <input
             type="text"
             className="form-input"
-            placeholder="이름 (예: 통신비, 월세)"
+            placeholder={t("fixedExpense.namePlaceholder")}
             value={expName}
             onChange={(e) => setExpName(e.target.value)}
           />
@@ -391,25 +409,25 @@ export default function Settings({ refresh, onRefresh }: Props) {
               <input
                 type="text"
                 className="form-input"
-                placeholder="금액"
+                placeholder={t("fixedExpense.amountPlaceholder")}
                 value={expAmount}
                 onChange={(e) => setExpAmount(formatAmountInput(e.target.value))}
                 inputMode="numeric"
               />
-              <span className="budget-unit">원</span>
+              {amountUnit && <span className="budget-unit">{amountUnit}</span>}
             </div>
             <div className="budget-input-wrap fixed-day-wrap">
               <input
                 type="number"
                 className="form-input"
-                placeholder="일"
+                placeholder={t("fixedExpense.dayPlaceholder")}
                 min={1}
                 max={31}
                 value={expDay}
                 onChange={(e) => setExpDay(e.target.value)}
                 inputMode="numeric"
               />
-              <span className="budget-unit">일</span>
+              <span className="budget-unit">{t("fixedExpense.dayUnit")}</span>
             </div>
           </div>
           <select
@@ -419,7 +437,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
           >
             {EXPENSE_CATEGORIES.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.icon} {c.name}
+                {categoryName(c.id)}
               </option>
             ))}
           </select>
@@ -437,17 +455,17 @@ export default function Settings({ refresh, onRefresh }: Props) {
               parseInt(expDay) > 31
             }
           >
-            {expenseSaved ? "추가됨!" : "고정 지출 추가"}
+            {expenseSaved ? t("fixedExpense.added") : t("fixedExpense.addButton")}
           </button>
         </div>
       </section>
 
       <section className="settings-section">
-        <h2 className="section-title">저녁 알림</h2>
-        <p className="section-desc">매일 저녁 9시에 장부 펼치기를 권고드립니다.</p>
+        <h2 className="section-title">{t("reminder.title")}</h2>
+        <p className="section-desc">{t("reminder.desc")}</p>
         <div className="reminder-row">
           <span className="reminder-label">
-            {reminderOn ? "켜짐" : "꺼짐"}
+            {reminderOn ? t("reminder.on") : t("reminder.off")}
           </span>
           <button
             className={`reminder-switch ${reminderOn ? "on" : ""}`}
@@ -462,55 +480,84 @@ export default function Settings({ refresh, onRefresh }: Props) {
 
       {isNative() && (
         <section className="settings-section">
-          <h2 className="section-title">알림 자동 기록 (실험)</h2>
-          <p className="section-desc">
-            결제 알림을 호조가 읽어 장부에 자동으로 올리옵니다. 네이버페이·카카오페이·현대카드 등 결제 관련 알림만 살피오며, 내용은 기기 밖으로 나가지 않사옵니다.
-          </p>
+          <h2 className="section-title">{t("listener.title")}</h2>
+          <p className="section-desc">{t("listener.desc")}</p>
           <div className="reminder-row">
             <span className="reminder-label">
-              {listenerOn ? "허락됨" : "허락되지 않음"}
+              {listenerOn ? t("listener.granted") : t("listener.notGranted")}
             </span>
             <button
               className="save-btn small"
               onClick={openListenerSettings}
             >
-              {listenerOn ? "시스템 설정 열기" : "알림 읽기 허락"}
+              {listenerOn ? t("listener.openSettings") : t("listener.allow")}
             </button>
           </div>
           <p className="section-desc" style={{ marginTop: 8, fontSize: 12 }}>
-            허락 후 돌아오시면 상태가 갱신되옵니다.
+            {t("listener.hint")}
           </p>
         </section>
       )}
 
       <section className="settings-section">
-        <h2 className="section-title">장부 내보내기</h2>
-        <p className="section-desc">전체 장부를 CSV 파일로 보관하옵니다.</p>
+        <h2 className="section-title">{t("language.title")}</h2>
+        <p className="section-desc">{t("language.desc")}</p>
+        <div className="lang-switch">
+          {SUPPORTED_LANGS.map((code) => (
+            <button
+              key={code}
+              className={`lang-btn ${lang === code ? "on" : ""}`}
+              onClick={() => handleLangChange(code)}
+              aria-pressed={lang === code}
+            >
+              {t(`language.${code}`)}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h2 className="section-title">{t("baseCurrency.title")}</h2>
+        <p className="section-desc">{t("baseCurrency.desc")}</p>
+        <div className="lang-switch">
+          {BASE_CURRENCIES.map((c) => (
+            <button
+              key={c}
+              className={`lang-btn ${baseCcy === c ? "on" : ""}`}
+              onClick={() => handleBaseCcyChange(c)}
+              aria-pressed={baseCcy === c}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h2 className="section-title">{t("export.title")}</h2>
+        <p className="section-desc">{t("export.desc")}</p>
         <button className="export-btn" onClick={handleExportCSV}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M3 12v2a2 2 0 002 2h8a2 2 0 002-2v-2M9 3v9M6 9l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          CSV 내보내기
+          {t("export.button")}
         </button>
       </section>
 
       <section className="settings-section">
-        <h2 className="section-title">API 키</h2>
-        <p className="section-desc">
-          호조는 서버를 두지 않사옵니다. 직접 발급하신 키로 AI와 OCR 기능을 이용하옵소서.
-          키는 오로지 이 기기 안에만 머무옵니다.
-        </p>
+        <h2 className="section-title">{t("apiKeys.title")}</h2>
+        <p className="section-desc">{t("apiKeys.desc")}</p>
 
         <div className="apikey-row">
           <div className="apikey-label">
-            <span className="apikey-name">Anthropic (AI 분석 · 영수증 파싱)</span>
-            <span className="apikey-hint">console.anthropic.com 에서 발급</span>
+            <span className="apikey-name">{t("apiKeys.anthropicName")}</span>
+            <span className="apikey-hint">{t("apiKeys.anthropicHint")}</span>
           </div>
           {anthSaved && !showAnth ? (
             <div className="apikey-saved">
               <code>{maskKey(anthSaved)}</code>
-              <button className="linkish" onClick={() => setShowAnth(true)}>변경</button>
-              <button className="linkish danger" onClick={handleClearAnthKey}>삭제</button>
+              <button className="linkish" onClick={() => setShowAnth(true)}>{t("apiKeys.change")}</button>
+              <button className="linkish danger" onClick={handleClearAnthKey}>{t("common.delete")}</button>
             </div>
           ) : (
             <div className="apikey-edit">
@@ -529,11 +576,11 @@ export default function Settings({ refresh, onRefresh }: Props) {
                   onClick={handleSaveAnthKey}
                   disabled={!anthKey.trim()}
                 >
-                  저장
+                  {t("common.save")}
                 </button>
                 {anthSaved && (
                   <button className="linkish" onClick={() => { setShowAnth(false); setAnthKey(""); }}>
-                    취소
+                    {t("common.cancel")}
                   </button>
                 )}
               </div>
@@ -543,14 +590,14 @@ export default function Settings({ refresh, onRefresh }: Props) {
 
         <div className="apikey-row">
           <div className="apikey-label">
-            <span className="apikey-name">Datalab (영수증 OCR)</span>
-            <span className="apikey-hint">datalab.to 에서 발급</span>
+            <span className="apikey-name">{t("apiKeys.datalabName")}</span>
+            <span className="apikey-hint">{t("apiKeys.datalabHint")}</span>
           </div>
           {dataSaved && !showData ? (
             <div className="apikey-saved">
               <code>{maskKey(dataSaved)}</code>
-              <button className="linkish" onClick={() => setShowData(true)}>변경</button>
-              <button className="linkish danger" onClick={handleClearDataKey}>삭제</button>
+              <button className="linkish" onClick={() => setShowData(true)}>{t("apiKeys.change")}</button>
+              <button className="linkish danger" onClick={handleClearDataKey}>{t("common.delete")}</button>
             </div>
           ) : (
             <div className="apikey-edit">
@@ -569,11 +616,11 @@ export default function Settings({ refresh, onRefresh }: Props) {
                   onClick={handleSaveDataKey}
                   disabled={!dataKey.trim()}
                 >
-                  저장
+                  {t("common.save")}
                 </button>
                 {dataSaved && (
                   <button className="linkish" onClick={() => { setShowData(false); setDataKey(""); }}>
-                    취소
+                    {t("common.cancel")}
                   </button>
                 )}
               </div>
@@ -585,19 +632,19 @@ export default function Settings({ refresh, onRefresh }: Props) {
       </section>
 
       <section className="settings-section">
-        <h2 className="section-title">호조 정보</h2>
+        <h2 className="section-title">{t("appInfo.title")}</h2>
         <div className="info-list">
           <div className="info-row">
-            <span>이름</span>
-            <span>호조 (戶曹)</span>
+            <span>{t("appInfo.name")}</span>
+            <span>Hojo</span>
           </div>
           <div className="info-row">
-            <span>버전</span>
-            <span>1.0.0</span>
+            <span>{t("appInfo.version")}</span>
+            <span>0.2.0</span>
           </div>
           <div className="info-row">
-            <span>데이터 저장</span>
-            <span>기기 내 저장 (IndexedDB)</span>
+            <span>{t("appInfo.storage")}</span>
+            <span>{t("appInfo.storageValue")}</span>
           </div>
         </div>
       </section>

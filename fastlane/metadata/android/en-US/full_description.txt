@@ -1,0 +1,27 @@
+Hojo is an open-source, serverless personal finance app.
+
+All transactions and settings are stored only in your device's IndexedDB. No cloud sync, no accounts, no central server. Not even the maintainers can access your ledger.
+
+AI features (receipt OCR, monthly and yearly reports) run on a BYOK (Bring Your Own Key) model — you provide your own Anthropic and Datalab API keys. No dependency on the publisher's infrastructure or credits.
+
+<b>Features</b>
+• Record expenses and income with categories, memos, and dates
+• Manage recurring income/expenses
+• Monthly budgets with usage tracking
+• Receipt camera OCR with automatic parsing
+• Monthly and yearly AI reports
+• 9 PM logging reminder
+• CSV export
+
+<b>Required API keys</b>
+• Anthropic — for AI reports and receipt parsing (console.anthropic.com)
+• Datalab — for receipt OCR (datalab.to)
+
+You pay your own API usage. Typical personal use is very low cost.
+
+<b>Open source</b>
+MIT licensed. Fork, modify, and redistribute freely.
+Repository: github.com/frodo-seo/hojo
+
+<b>Disclaimer</b>
+Hojo does not provide financial advice. AI reports are informational only; consult a professional for important financial decisions.

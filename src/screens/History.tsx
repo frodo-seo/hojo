@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Transaction } from "../types";
 import { getTransactionsByMonth } from "../lib/db";
 import { currentMonth, formatDate, formatMoney } from "../lib/format";
-import { EXPENSE_CATEGORIES } from "../lib/categories";
+import { EXPENSE_CATEGORIES, categoryName } from "../lib/categories";
 import MonthPicker from "../components/MonthPicker";
 import TransactionItem from "../components/TransactionItem";
 
@@ -19,6 +20,7 @@ type DayGroup = {
 };
 
 export default function History({ refresh, onEditTx }: Props) {
+  const { t } = useTranslation();
   const [month, setMonth] = useState(currentMonth());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [keyword, setKeyword] = useState("");
@@ -88,7 +90,7 @@ export default function History({ refresh, onEditTx }: Props) {
         <input
           type="text"
           className="search-input"
-          placeholder="메모 검색"
+          placeholder={t("history.searchPlaceholder")}
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
         />
@@ -106,7 +108,7 @@ export default function History({ refresh, onEditTx }: Props) {
           className={`filter-chip ${filterCat === null ? "on" : ""}`}
           onClick={() => setFilterCat(null)}
         >
-          전체
+          {t("history.filterAll")}
         </button>
         {EXPENSE_CATEGORIES.map((c) => (
           <button
@@ -114,14 +116,14 @@ export default function History({ refresh, onEditTx }: Props) {
             className={`filter-chip ${filterCat === c.id ? "on" : ""}`}
             onClick={() => setFilterCat(filterCat === c.id ? null : c.id)}
           >
-            {c.icon} {c.name}
+            <c.Icon size={14} strokeWidth={1.75} /> {categoryName(c.id)}
           </button>
         ))}
       </div>
 
       {groups.length === 0 ? (
         <div className="empty">
-          <p>{keyword || filterCat ? "검색 결과가 없어요" : "이 달에는 내역이 없어요"}</p>
+          <p>{keyword || filterCat ? t("history.noResults") : t("history.noRecords")}</p>
         </div>
       ) : (
         <div className="history-groups">

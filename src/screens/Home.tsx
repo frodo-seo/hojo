@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Transaction, Budget } from "../types";
-import { getTransactionsByMonth, getBudget, applyFixedIncomes, applyFixedExpenses } from "../lib/db";
-import { formatMoney, currentMonth } from "../lib/format";
-import { getCategoryById } from "../lib/categories";
+import { useTranslation } from "react-i18next";
+import type { Transaction, Budget, Asset } from "../types";
+import { getTransactionsByMonth, getBudget, applyFixedIncomes, applyFixedExpenses, getAssets } from "../lib/db";
+import { valuePortfolio, valuationsInBase, type BaseValued } from "../lib/prices";
+import { useBaseCurrency } from "../lib/settings";
+import { formatMoney, formatCurrency, formatPercent, currentMonth } from "../lib/format";
+import { getCategoryById, categoryName } from "../lib/categories";
 import BudgetBar from "../components/BudgetBar";
 import TransactionItem from "../components/TransactionItem";
 import MonthPicker from "../components/MonthPicker";
@@ -10,12 +13,17 @@ import MonthPicker from "../components/MonthPicker";
 type Props = {
   refresh: number;
   onEditTx: (tx: Transaction) => void;
+  onOpenAssets: () => void;
 };
 
-export default function Home({ refresh, onEditTx }: Props) {
+export default function Home({ refresh, onEditTx, onOpenAssets }: Props) {
+  const { t } = useTranslation();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budget, setBudget] = useState<Budget | undefined>();
   const [month, setMonth] = useState(currentMonth());
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [based, setBased] = useState<BaseValued[]>([]);
+  const baseCcy = useBaseCurrency();
 
   useEffect(() => {
     async function load() {
@@ -28,6 +36,35 @@ export default function Home({ refresh, onEditTx }: Props) {
     }
     load();
   }, [month, refresh]);
+
+  useEffect(() => {
+    (async () => {
+      const list = await getAssets();
+      setAssets(list);
+      if (list.length > 0) {
+        const vs = await valuePortfolio(list);
+        setBased(await valuationsInBase(vs, baseCcy));
+      } else {
+        setBased([]);
+      }
+    })();
+  }, [refresh, baseCcy]);
+
+  const assetSummary = useMemo(() => {
+    if (based.length === 0) return null;
+    let cost = 0;
+    let value = 0;
+    let anyValue = false;
+    for (const b of based) {
+      if (b.costBase !== null) cost += b.costBase;
+      if (b.valueBase !== null) {
+        value += b.valueBase;
+        anyValue = true;
+      }
+    }
+    if (!anyValue) return null;
+    return { cost, value };
+  }, [based]);
 
   const { income, expense } = useMemo(() => {
     let inc = 0,
@@ -60,25 +97,54 @@ export default function Home({ refresh, onEditTx }: Props) {
 
       <div className="summary-cards">
         <div className="summary-card income">
-          <span className="summary-label">수입</span>
+          <span className="summary-label">{t("home.income")}</span>
           <span className="summary-value">+{formatMoney(income)}</span>
         </div>
         <div className="summary-card expense">
-          <span className="summary-label">지출</span>
+          <span className="summary-label">{t("home.expense")}</span>
           <span className="summary-value">-{formatMoney(expense)}</span>
         </div>
       </div>
 
       {budget && <BudgetBar budget={budget.amount} spent={expense} />}
 
+      <button className="asset-home-card" onClick={onOpenAssets}>
+        <div className="asset-home-head">
+          <span className="asset-home-title">{t("assets.homeCardTitle")}</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="asset-home-arrow">
+            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        {assets.length === 0 || !assetSummary ? (
+          <p className="asset-home-empty">{t("assets.homeCardEmpty")}</p>
+        ) : (
+          (() => {
+            const gain = assetSummary.value - assetSummary.cost;
+            const pct = assetSummary.cost > 0 ? gain / assetSummary.cost : 0;
+            const gainClass = gain >= 0 ? "positive" : "negative";
+            return (
+              <div className="asset-home-list">
+                <div className="asset-home-row">
+                  <span className="asset-home-ccy">{baseCcy}</span>
+                  <span className="asset-home-value">{formatCurrency(assetSummary.value, baseCcy)}</span>
+                  <span className={`asset-home-gain ${gainClass}`}>
+                    {gain >= 0 ? "+" : ""}{formatPercent(pct)}
+                  </span>
+                </div>
+              </div>
+            );
+          })()
+        )}
+      </button>
+
       {topCategories.length > 0 && (
         <section className="home-section">
-          <h2 className="section-title">이달 주요 지출</h2>
+          <h2 className="section-title">{t("home.topSpending")}</h2>
           <div className="top-cats">
             {topCategories.map(({ cat, amount }) => (
               <div key={cat?.id} className="top-cat">
-                <span className="top-cat-icon">{cat?.icon}</span>
-                <span className="top-cat-name">{cat?.name}</span>
+                <span className="top-cat-icon">{cat ? <cat.Icon size={18} strokeWidth={1.75} /> : null}</span>
+                <span className="top-cat-name">{cat ? categoryName(cat.id) : ""}</span>
                 <span className="top-cat-amount">{formatMoney(amount)}</span>
               </div>
             ))}
@@ -87,11 +153,11 @@ export default function Home({ refresh, onEditTx }: Props) {
       )}
 
       <section className="home-section">
-        <h2 className="section-title">최근 장부</h2>
+        <h2 className="section-title">{t("home.recent")}</h2>
         {recent.length === 0 ? (
           <div className="empty">
-            <p>장부가 아직 비어 있사옵니다</p>
-            <p className="empty-sub">아래 + 표식으로 첫 기록을 올려보시옵소서</p>
+            <p>{t("home.emptyTitle")}</p>
+            <p className="empty-sub">{t("home.emptySub")}</p>
           </div>
         ) : (
           <div className="tx-list">

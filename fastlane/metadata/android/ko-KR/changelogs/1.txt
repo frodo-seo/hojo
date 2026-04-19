@@ -1,0 +1,7 @@
+첫 공개 릴리즈.
+
+• BYOK 구조 (Anthropic + Datalab)
+• 로컬 전용 저장 (IndexedDB)
+• 영수증 OCR 자동 파싱
+• 월간·연간 AI 리포트
+• 예산 관리, 고정 수입/지출, CSV 내보내기

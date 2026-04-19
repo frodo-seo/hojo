@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { formatMoney } from "../lib/format";
 
 type Props = {
@@ -6,6 +7,7 @@ type Props = {
 };
 
 export default function BudgetBar({ budget, spent }: Props) {
+  const { t } = useTranslation();
   if (budget <= 0) return null;
   const ratio = Math.min(spent / budget, 1);
   const remain = budget - spent;
@@ -14,9 +16,11 @@ export default function BudgetBar({ budget, spent }: Props) {
   return (
     <div className="budget-bar">
       <div className="budget-header">
-        <span className="budget-title">이번 달 예산</span>
+        <span className="budget-title">{t("budget.thisMonth")}</span>
         <span className={`budget-remain ${over ? "over" : ""}`}>
-          {over ? `${formatMoney(-remain)} 초과` : `${formatMoney(remain)} 남음`}
+          {over
+            ? t("budget.over", { amount: formatMoney(-remain) })
+            : t("budget.remaining", { amount: formatMoney(remain) })}
         </span>
       </div>
       <div className="budget-track">

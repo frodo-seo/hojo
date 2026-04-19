@@ -3,12 +3,14 @@ import { Filesystem, Directory } from "@capacitor/filesystem";
 import { isNative } from "./platform";
 
 /**
- * 호조 상소문을 두루마리 카드 이미지(PNG)로 생성.
- * 세로 1080x1350 (인스타/스레드 최적), 한지+먹 톤.
+ * 리포트를 공유용 카드 이미지(PNG)로 렌더링.
+ * 1080x1350 세로 (인스타/스레드 최적), 다크 뉴트럴 + 앰버 악센트.
  */
 
 const W = 1080;
 const H = 1350;
+
+const FONT_SANS = '"Inter", "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
@@ -34,7 +36,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
 }
 
 export async function renderMemorialCard(params: {
-  title: string; // 예: "2026년 4월의 상소"
+  title: string;
   body: string;
 }): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
@@ -43,99 +45,76 @@ export async function renderMemorialCard(params: {
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
-  // 배경 — 짙은 흑갈 두루마리
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, "#1A130D");
-  bgGrad.addColorStop(1, "#0F0A07");
-  ctx.fillStyle = bgGrad;
+  // 배경
+  ctx.fillStyle = "#0A0A0B";
   ctx.fillRect(0, 0, W, H);
 
-  // 두루마리 종이 패널
+  // 카드 패널
   const pad = 72;
   const panelX = pad;
   const panelY = pad;
   const panelW = W - pad * 2;
   const panelH = H - pad * 2;
 
-  const paperGrad = ctx.createLinearGradient(0, panelY, 0, panelY + panelH);
-  paperGrad.addColorStop(0, "#2B2018");
-  paperGrad.addColorStop(1, "#221912");
-  ctx.fillStyle = paperGrad;
-  roundRect(ctx, panelX, panelY, panelW, panelH, 20);
+  ctx.fillStyle = "#141517";
+  roundRect(ctx, panelX, panelY, panelW, panelH, 16);
   ctx.fill();
 
-  // 금테
-  ctx.strokeStyle = "rgba(178, 122, 74, 0.42)";
-  ctx.lineWidth = 2;
-  roundRect(ctx, panelX, panelY, panelW, panelH, 20);
-  ctx.stroke();
-
-  // 상단 戶 뱃지
-  const badgeY = panelY + 100;
-  ctx.beginPath();
-  ctx.arc(W / 2, badgeY, 52, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(178, 122, 74, 0.12)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(178, 122, 74, 0.5)";
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  ctx.fillStyle = "#D49A66";
-  ctx.font = '500 56px "Gowun Batang", "Noto Serif KR", serif';
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("戶", W / 2, badgeY + 4);
-
-  // 제목
-  ctx.fillStyle = "#EFE4CE";
-  ctx.font = '700 38px "Gowun Batang", "Noto Serif KR", serif';
-  ctx.textAlign = "center";
-  ctx.fillText(params.title, W / 2, badgeY + 118);
-
-  // 구분선
-  ctx.strokeStyle = "rgba(178, 122, 74, 0.30)";
+  ctx.strokeStyle = "#26282C";
   ctx.lineWidth = 1;
-  ctx.setLineDash([4, 6]);
-  ctx.beginPath();
-  ctx.moveTo(panelX + 80, badgeY + 168);
-  ctx.lineTo(panelX + panelW - 80, badgeY + 168);
+  roundRect(ctx, panelX, panelY, panelW, panelH, 16);
   ctx.stroke();
-  ctx.setLineDash([]);
 
-  // 본문
-  ctx.fillStyle = "#EFE4CE";
-  ctx.font = '400 28px "Gowun Batang", "Noto Serif KR", serif';
+  // 상단 브랜드
+  ctx.fillStyle = "#E89A3C";
+  ctx.font = `600 24px ${FONT_SANS}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  const bodyX = panelX + 80;
-  const bodyY = badgeY + 210;
-  const bodyMaxW = panelW - 160;
-  const lineH = 48;
+  ctx.fillText("HOJO", panelX + 56, panelY + 56);
+
+  ctx.fillStyle = "#7A7D82";
+  ctx.font = `500 18px ${FONT_SANS}`;
+  ctx.fillText("FINANCE REPORT", panelX + 56, panelY + 92);
+
+  // 제목
+  ctx.fillStyle = "#E8EAED";
+  ctx.font = `700 42px ${FONT_SANS}`;
+  ctx.textAlign = "left";
+  ctx.fillText(params.title, panelX + 56, panelY + 160);
+
+  // 구분선
+  ctx.strokeStyle = "#26282C";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(panelX + 56, panelY + 232);
+  ctx.lineTo(panelX + panelW - 56, panelY + 232);
+  ctx.stroke();
+
+  // 본문
+  ctx.fillStyle = "#C7CACF";
+  ctx.font = `400 26px ${FONT_SANS}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  const bodyX = panelX + 56;
+  const bodyY = panelY + 270;
+  const bodyMaxW = panelW - 112;
+  const lineH = 42;
   const lines = wrap(ctx, params.body, bodyMaxW);
-  const maxLines = Math.floor((panelH - (bodyY - panelY) - 140) / lineH);
+  const maxLines = Math.floor((panelH - (bodyY - panelY) - 120) / lineH);
   const shown = lines.slice(0, maxLines);
   shown.forEach((ln, i) => {
     ctx.fillText(ln, bodyX, bodyY + i * lineH);
   });
 
-  // 하단 낙관 (낙장)
-  const sealSize = 76;
-  const sealX = W - pad - 80 - sealSize;
-  const sealY = H - pad - 80 - sealSize;
-  ctx.fillStyle = "#8C3A2E";
-  roundRect(ctx, sealX, sealY, sealSize, sealSize, 6);
-  ctx.fill();
-  ctx.fillStyle = "#F2E9D8";
-  ctx.font = '700 40px "Gowun Batang", "Noto Serif KR", serif';
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("戶", sealX + sealSize / 2, sealY + sealSize / 2 + 2);
+  // 하단 엑센트 바
+  ctx.fillStyle = "#E89A3C";
+  ctx.fillRect(panelX + 56, H - pad - 72, 48, 3);
 
-  // 푸터 서명
-  ctx.fillStyle = "rgba(239, 228, 206, 0.52)";
-  ctx.font = '500 20px "Gowun Batang", "Noto Serif KR", serif';
+  // 푸터
+  ctx.fillStyle = "#7A7D82";
+  ctx.font = `500 18px ${FONT_SANS}`;
   ctx.textAlign = "left";
-  ctx.fillText("소신, 삼가 올리옵나이다. — 호조(戶曹)", panelX + 80, H - pad - 70);
+  ctx.fillText("Generated by Hojo", panelX + 56, H - pad - 56);
 
   return new Promise<Blob | null>((resolve) => {
     canvas.toBlob((b) => resolve(b), "image/png", 0.95);
@@ -179,7 +158,7 @@ export async function shareMemorial(params: {
 }) {
   const blob = await renderMemorialCard(params);
   if (!blob) return;
-  const filename = params.filename ?? "hojo-memorial.png";
+  const filename = params.filename ?? "hojo-report.png";
 
   if (isNative()) {
     try {

@@ -5,7 +5,6 @@ import { getCategoryById } from "./categories";
 export interface CategoryStat {
   categoryId: string;
   name: string;
-  icon: string;
   total: number;
   count: number;
   percent: number;
@@ -60,7 +59,6 @@ export function calcMonthStats(
       return {
         categoryId: id,
         name: cat?.name ?? id,
-        icon: cat?.icon ?? "📦",
         total,
         count,
         percent: totalExpense > 0 ? Math.round((total / totalExpense) * 100) : 0,

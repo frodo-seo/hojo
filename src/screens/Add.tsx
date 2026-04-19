@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Transaction, TransactionType } from "../types";
 import { addTransaction, updateTransaction, deleteTransaction } from "../lib/db";
 import { EXPENSE_CATEGORIES } from "../lib/categories";
-import { today, formatAmountInput, amountKoreanWord } from "../lib/format";
+import { today, formatAmountInput, amountKoreanWord, formatMoney } from "../lib/format";
 import CategoryPicker from "../components/CategoryPicker";
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export default function Add({ editTx, onDone, onBack }: Props) {
+  const { t } = useTranslation();
   const [type, setType] = useState<TransactionType>(editTx?.type ?? "expense");
   const [amount, setAmount] = useState(editTx ? String(editTx.amount) : "");
   const [categoryId, setCategoryId] = useState(
@@ -45,7 +47,7 @@ export default function Add({ editTx, onDone, onBack }: Props) {
     const amt = parseInt(amount);
     if (!amt || amt <= 0) return;
     if (type === "expense" && amt >= 1_000_000) {
-      const ok = confirm(`${amt.toLocaleString("ko-KR")}원, 큰 금액이옵니다. 진실로 올리시겠사옵니까?`);
+      const ok = confirm(t("add.confirmLargeAmount", { amount: formatMoney(amt) }));
       if (!ok) return;
     }
     setSaving(true);
@@ -70,7 +72,7 @@ export default function Add({ editTx, onDone, onBack }: Props) {
 
   async function handleDelete() {
     if (!editTx) return;
-    if (!confirm("삭제할까요?")) return;
+    if (!confirm(t("common.confirmDelete"))) return;
     await deleteTransaction(editTx.id);
     onDone();
   }
@@ -83,10 +85,10 @@ export default function Add({ editTx, onDone, onBack }: Props) {
             <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
-        <h1>{isEdit ? "수정" : "추가"}</h1>
+        <h1>{isEdit ? t("add.editTitle") : t("add.addTitle")}</h1>
         {isEdit && (
           <button className="delete-btn" onClick={handleDelete}>
-            삭제
+            {t("common.delete")}
           </button>
         )}
       </header>
@@ -99,7 +101,7 @@ export default function Add({ editTx, onDone, onBack }: Props) {
             setCategoryId("food");
           }}
         >
-          지출
+          {t("add.typeExpense")}
         </button>
         <button
           className={`toggle-btn ${type === "income" ? "on income" : ""}`}
@@ -108,7 +110,7 @@ export default function Add({ editTx, onDone, onBack }: Props) {
             setCategoryId("salary");
           }}
         >
-          수입
+          {t("add.typeIncome")}
         </button>
       </div>
 
@@ -116,13 +118,13 @@ export default function Add({ editTx, onDone, onBack }: Props) {
         <input
           type="text"
           className="amount-input"
-          placeholder="0"
+          placeholder={t("add.amountPlaceholder")}
           value={formatAmountInput(amount)}
           onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))}
           inputMode="numeric"
           autoFocus
         />
-        <span className="amount-unit">원</span>
+        <span className="amount-unit">{t("format.amountUnit")}</span>
       </div>
       {amountKoreanWord(parseInt(amount) || 0) && (
         <p className="amount-hint amount-hint-center">
@@ -131,11 +133,11 @@ export default function Add({ editTx, onDone, onBack }: Props) {
       )}
 
       <div className="quick-amount-chips">
-        <button className="quick-chip" onClick={() => addAmount(1000)}>+1천</button>
-        <button className="quick-chip" onClick={() => addAmount(10000)}>+1만</button>
-        <button className="quick-chip" onClick={() => addAmount(100000)}>+10만</button>
-        <button className="quick-chip" onClick={() => pad("000")}>000</button>
-        <button className="quick-chip quick-chip-clear" onClick={clearAmount} aria-label="지우기">
+        <button className="quick-chip" onClick={() => addAmount(1000)}>{t("add.quickThousand")}</button>
+        <button className="quick-chip" onClick={() => addAmount(10000)}>{t("add.quickTenK")}</button>
+        <button className="quick-chip" onClick={() => addAmount(100000)}>{t("add.quickHundredK")}</button>
+        <button className="quick-chip" onClick={() => pad("000")}>{t("add.quickZero")}</button>
+        <button className="quick-chip quick-chip-clear" onClick={clearAmount} aria-label={t("add.clearAmount")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
@@ -143,7 +145,7 @@ export default function Add({ editTx, onDone, onBack }: Props) {
       </div>
 
       <div className="form-field">
-        <label>카테고리</label>
+        <label>{t("add.categoryLabel")}</label>
         <CategoryPicker
           type={type}
           selected={categoryId}
@@ -152,7 +154,7 @@ export default function Add({ editTx, onDone, onBack }: Props) {
       </div>
 
       <div className="form-field">
-        <label>날짜</label>
+        <label>{t("add.dateLabel")}</label>
         <input
           type="date"
           className="form-input"
@@ -162,11 +164,11 @@ export default function Add({ editTx, onDone, onBack }: Props) {
       </div>
 
       <div className="form-field">
-        <label>메모</label>
+        <label>{t("add.memoLabel")}</label>
         <input
           type="text"
           className="form-input"
-          placeholder="메모 (선택)"
+          placeholder={t("add.memoPlaceholder")}
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
         />
@@ -177,7 +179,7 @@ export default function Add({ editTx, onDone, onBack }: Props) {
         onClick={handleSave}
         disabled={!amount || parseInt(amount) <= 0 || saving}
       >
-        {saving ? "저장 중..." : isEdit ? "수정 완료" : "저장"}
+        {saving ? t("common.saving") : isEdit ? t("add.editButton") : t("common.save")}
       </button>
     </div>
   );

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" fill="none">
-  <rect width="192" height="192" rx="40" fill="#F5F1EB"/>
-  <rect x="3" y="3" width="186" height="186" rx="39" stroke="#E5DFD6" stroke-width="1"/>
-  <text x="96" y="122" text-anchor="middle" font-family="serif" font-weight="700" font-size="84" fill="#2D2D2D">戶</text>
+  <rect width="192" height="192" rx="40" fill="#0A0A0B"/>
+  <rect x="1.5" y="1.5" width="189" height="189" rx="39.5" stroke="#26282C" stroke-width="1"/>
+  <text x="96" y="126" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="108" fill="#F5B32E" letter-spacing="-4">H</text>
 </svg>

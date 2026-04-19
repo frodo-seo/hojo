@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { getTransactionsByMonth } from "../lib/db";
+import { useTranslation } from "react-i18next";
+import { getTransactionsByMonth, getAssets } from "../lib/db";
 import { calcMonthStats, compareMonths, compareToText } from "../lib/stats";
+import { valuePortfolio, portfolioToText } from "../lib/prices";
 import { getReport, saveReport, getYearlyReport, saveYearlyReport } from "../lib/wiki";
-import { currentMonth, prevMonth } from "../lib/format";
+import { currentMonth, prevMonth, formatMoney } from "../lib/format";
 import { shareMemorial } from "../lib/shareCard";
 import { generateMemorial } from "../lib/coach";
 import { ApiKeyMissingError } from "../lib/receipt";
@@ -12,6 +14,7 @@ type Props = { refresh: number; onGoSettings: () => void };
 type ReportState = "loading" | "empty" | "ready" | "generating" | "error";
 
 export default function Coach({ refresh, onGoSettings }: Props) {
+  const { t } = useTranslation();
   const keys = useApiKeysStatus();
   const canGenerate = keys.anthropic;
   const [stats, setStats] = useState<ReturnType<typeof formatStats> | null>(null);
@@ -32,58 +35,55 @@ export default function Coach({ refresh, onGoSettings }: Props) {
 
   function monthlyTitle() {
     const [y, m] = month.split("-");
-    return `${y}년 ${parseInt(m)}월의 상소`;
+    return t("coach.monthlyReportTitle", { year: y, month: parseInt(m) });
   }
 
   async function handleShareMonthly() {
     await shareMemorial({
       title: monthlyTitle(),
       body: reportText,
-      filename: `호조상소_${month}.png`,
+      filename: `Hojo_${month}.png`,
     });
   }
 
   async function handleShareYearly() {
     await shareMemorial({
-      title: `${year}년 연말 상소`,
+      title: t("coach.yearlyReportTitle", { year }),
       body: yearlyText,
-      filename: `호조상소_${year}_연말.png`,
+      filename: `Hojo_${year}_yearly.png`,
     });
   }
 
-  useEffect(() => { loadData(); }, [refresh]);
+  useEffect(() => {
+    (async () => {
+      const txs = await getTransactionsByMonth(month);
+      const cur = calcMonthStats(txs, month);
+      const prevTxs = await getTransactionsByMonth(prevMonth(month));
+      const prev = calcMonthStats(prevTxs, prevMonth(month));
+      const cmp = compareMonths(cur, prev);
+      setStats(formatStats(cur, cmp));
 
-  async function loadData() {
-    // 로컬 통계 (즉시)
-    const txs = await getTransactionsByMonth(month);
-    const cur = calcMonthStats(txs, month);
-    const prevTxs = await getTransactionsByMonth(prevMonth(month));
-    const prev = calcMonthStats(prevTxs, prevMonth(month));
-    const cmp = compareMonths(cur, prev);
-    setStats(formatStats(cur, cmp));
-
-    // 저장된 월간 리포트 확인 (자동 생성 X, 버튼으로만)
-    const saved = await getReport(month);
-    if (saved) {
-      setReportText(saved.content);
-      setReportDate(fmtDate(saved.updatedAt));
-      setReportState("ready");
-    } else {
-      setReportState("empty");
-    }
-
-    // 12월이면 연간 리포트 확인
-    if (isDecember) {
-      const yearly = await getYearlyReport(year);
-      if (yearly) {
-        setYearlyText(yearly.content);
-        setYearlyDate(fmtDate(yearly.updatedAt));
-        setYearlyState("ready");
+      const saved = await getReport(month);
+      if (saved) {
+        setReportText(saved.content);
+        setReportDate(fmtDate(saved.updatedAt));
+        setReportState("ready");
       } else {
-        setYearlyState("empty");
+        setReportState("empty");
       }
-    }
-  }
+
+      if (isDecember) {
+        const yearly = await getYearlyReport(year);
+        if (yearly) {
+          setYearlyText(yearly.content);
+          setYearlyDate(fmtDate(yearly.updatedAt));
+          setYearlyState("ready");
+        } else {
+          setYearlyState("empty");
+        }
+      }
+    })();
+  }, [refresh, month, isDecember, year]);
 
   async function handleGenerate() {
     if (!stats) return;
@@ -96,7 +96,12 @@ export default function Coach({ refresh, onGoSettings }: Props) {
       const prevTxs = await getTransactionsByMonth(prevMonth(month));
       const prev = calcMonthStats(prevTxs, prevMonth(month));
       const cmp = compareMonths(cur, prev);
-      const context = compareToText(cmp);
+      const spendingText = compareToText(cmp);
+      const assets = await getAssets();
+      const assetText = assets.length > 0
+        ? portfolioToText(await valuePortfolio(assets))
+        : "";
+      const context = assetText ? `${spendingText}\n\n${assetText}` : spendingText;
 
       const insight = await generateMemorial(context, "monthly");
 
@@ -106,9 +111,9 @@ export default function Coach({ refresh, onGoSettings }: Props) {
       setReportState("ready");
     } catch (err) {
       if (err instanceof ApiKeyMissingError) {
-        setError("설정 → API 키에서 앤트로픽 키를 간수하옵소서.");
+        setError(t("apiKeys.needAnthropic"));
       } else {
-        setError(err instanceof Error ? err.message : "오류 발생");
+        setError(err instanceof Error ? err.message : t("common.error"));
       }
       setReportState("error");
     }
@@ -134,13 +139,17 @@ export default function Coach({ refresh, onGoSettings }: Props) {
       }
 
       if (monthlyStats.length === 0) {
-        setYearlyError("올해 내역이 없어요.");
+        setYearlyError(t("coach.noYearData"));
         setYearlyState("error");
         return;
       }
 
+      const assets = await getAssets();
+      const assetText = assets.length > 0
+        ? "\n---\n" + portfolioToText(await valuePortfolio(assets))
+        : "";
       const insight = await generateMemorial(
-        monthlyStats.join("\n---\n"),
+        monthlyStats.join("\n---\n") + assetText,
         "yearly",
         year,
       );
@@ -151,9 +160,9 @@ export default function Coach({ refresh, onGoSettings }: Props) {
       setYearlyState("ready");
     } catch (err) {
       if (err instanceof ApiKeyMissingError) {
-        setYearlyError("설정 → API 키에서 앤트로픽 키를 간수하옵소서.");
+        setYearlyError(t("apiKeys.needAnthropic"));
       } else {
-        setYearlyError(err instanceof Error ? err.message : "오류 발생");
+        setYearlyError(err instanceof Error ? err.message : t("common.error"));
       }
       setYearlyState("error");
     }
@@ -162,18 +171,18 @@ export default function Coach({ refresh, onGoSettings }: Props) {
   return (
     <div className="screen coach-screen">
       <header className="coach-header">
-        <h1>호조 판서의 상소</h1>
-        <span className="coach-header-sub">전하의 가계를 살피어 아뢰옵나이다 (AI 분석)</span>
+        <h1>{t("coach.title")}</h1>
+        <span className="coach-header-sub">{t("coach.subtitle")}</span>
       </header>
 
       {keys.loaded && !canGenerate && (
         <div className="keys-missing-card">
-          <div className="keys-missing-title">상소를 올리려면 열쇠가 필요하옵니다</div>
+          <div className="keys-missing-title">{t("apiKeys.missingTitle")}</div>
           <div className="keys-missing-body">
-            AI 분석은 <strong>Anthropic</strong> 키가 있어야 하옵니다. 설정에서 간수하시옵소서.
+            {t("apiKeys.coachMissingBody")}
           </div>
           <button className="keys-missing-btn" onClick={onGoSettings}>
-            설정으로 가기
+            {t("apiKeys.goSettings")}
           </button>
         </div>
       )}
@@ -183,21 +192,21 @@ export default function Coach({ refresh, onGoSettings }: Props) {
         <div className="coach-stats">
           <div className="coach-stat-row">
             <div className="coach-stat-card">
-              <span className="coach-stat-label">이달 지출</span>
+              <span className="coach-stat-label">{t("coach.thisMonthExpense")}</span>
               <span className="coach-stat-value expense">{stats.totalExpense}</span>
             </div>
             <div className="coach-stat-card">
-              <span className="coach-stat-label">일평균</span>
+              <span className="coach-stat-label">{t("coach.dailyAvg")}</span>
               <span className="coach-stat-value">{stats.dailyAvg}</span>
             </div>
           </div>
           <div className="coach-stat-row">
             <div className="coach-stat-card">
-              <span className="coach-stat-label">으뜸 항목</span>
+              <span className="coach-stat-label">{t("coach.topCategory")}</span>
               <span className="coach-stat-value">{stats.topCategory}</span>
             </div>
             <div className="coach-stat-card">
-              <span className="coach-stat-label">전월 대비</span>
+              <span className="coach-stat-label">{t("coach.prevCompare")}</span>
               <span className="coach-stat-value">{stats.compare}</span>
             </div>
           </div>
@@ -207,7 +216,7 @@ export default function Coach({ refresh, onGoSettings }: Props) {
               {stats.categories.map((c) => (
                 <div key={c.name} className="coach-cat-bar">
                   <div className="coach-cat-bar-label">
-                    <span>{c.icon} {c.name}</span>
+                    <span>{c.name}</span>
                     <span className="coach-cat-bar-val">{c.total}</span>
                   </div>
                   <div className="coach-cat-bar-track">
@@ -217,14 +226,14 @@ export default function Coach({ refresh, onGoSettings }: Props) {
               ))}
             </div>
           )}
-          <div className="coach-stat-badge">장부 요약</div>
+          <div className="coach-stat-badge">{t("coach.summary")}</div>
         </div>
       )}
 
       {/* AI 월간 리포트 */}
       <div className="coach-report-section">
         <div className="coach-report-header">
-          <h2>이달의 상소문 (AI 분석)</h2>
+          <h2>{t("coach.monthlyTitle")}</h2>
           {reportDate && <span className="coach-report-date">{reportDate}</span>}
         </div>
 
@@ -244,10 +253,10 @@ export default function Coach({ refresh, onGoSettings }: Props) {
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                   <path d="M7.5 1v9M4 4.5L7.5 1 11 4.5M2.5 10v3h10v-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                상소 공유
+                {t("common.share")}
               </button>
               <button className="coach-refresh-btn" onClick={handleGenerate}>
-                다시 올리기
+                {t("common.regenerate")}
               </button>
             </div>
           </>
@@ -256,8 +265,8 @@ export default function Coach({ refresh, onGoSettings }: Props) {
         {reportState === "empty" && (
           <>
             <div className="coach-report-body coach-sample-body">
-              <p className="coach-report-text">{SAMPLE_MEMORIAL}</p>
-              <div className="coach-sample-badge">예시 상소 · 아래 버튼으로 실제 상소를 청하시옵소서</div>
+              <p className="coach-report-text">{t("coach.emptyMonthlyBody")}</p>
+              <div className="coach-sample-badge">{t("coach.sampleBadge")}</div>
             </div>
             {stats && stats.categories.length > 0 && (
               <div className="coach-report-actions">
@@ -266,7 +275,7 @@ export default function Coach({ refresh, onGoSettings }: Props) {
                     <path d="M8 2L2 5v4l6 3.5L14 9V5L8 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                     <circle cx="8" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3" />
                   </svg>
-                  상소 올리기
+                  {t("coach.generate")}
                 </button>
               </div>
             )}
@@ -277,7 +286,7 @@ export default function Coach({ refresh, onGoSettings }: Props) {
           <div className="coach-report-body">
             <div className="coach-generating">
               <div className="coach-typing"><span /><span /><span /></div>
-              <span>판서께서 장부를 살피시는 중...</span>
+              <span>{t("coach.generatingMonthly")}</span>
             </div>
           </div>
         )}
@@ -285,7 +294,7 @@ export default function Coach({ refresh, onGoSettings }: Props) {
         {reportState === "error" && (
           <div className="coach-report-body coach-report-empty">
             <p>{error}</p>
-            <button className="coach-generate-btn" onClick={handleGenerate}>다시 아뢰기</button>
+            <button className="coach-generate-btn" onClick={handleGenerate}>{t("common.retry")}</button>
           </div>
         )}
       </div>
@@ -294,7 +303,7 @@ export default function Coach({ refresh, onGoSettings }: Props) {
       {isDecember && (
         <div className="coach-report-section">
           <div className="coach-report-header">
-            <h2>{year}년 연말 상소 (AI 분석)</h2>
+            <h2>{t("coach.yearlyHeader", { year })}</h2>
             {yearlyDate && <span className="coach-report-date">{yearlyDate}</span>}
           </div>
 
@@ -314,10 +323,10 @@ export default function Coach({ refresh, onGoSettings }: Props) {
                   <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                     <path d="M7.5 1v9M4 4.5L7.5 1 11 4.5M2.5 10v3h10v-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  상소 공유
+                  {t("common.share")}
                 </button>
                 <button className="coach-refresh-btn" onClick={handleGenerateYearly}>
-                  다시 올리기
+                  {t("common.regenerate")}
                 </button>
               </div>
             </>
@@ -325,13 +334,13 @@ export default function Coach({ refresh, onGoSettings }: Props) {
 
           {yearlyState === "empty" && (
             <div className="coach-report-body coach-report-empty">
-              <p>{year}년 한 해의 장부를 총람하여 연말 상소를 올리시옵소서.</p>
+              <p>{t("coach.emptyYearlyBody", { year })}</p>
               <button className="coach-generate-btn" onClick={handleGenerateYearly} disabled={!canGenerate}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M8 2L2 5v4l6 3.5L14 9V5L8 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                   <circle cx="8" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3" />
                 </svg>
-                연말 상소 올리기
+                {t("coach.generateYearly")}
               </button>
             </div>
           )}
@@ -340,7 +349,7 @@ export default function Coach({ refresh, onGoSettings }: Props) {
             <div className="coach-report-body">
               <div className="coach-generating">
                 <div className="coach-typing"><span /><span /><span /></div>
-                <span>판서께서 한 해 장부를 총람하시는 중...</span>
+                <span>{t("coach.generatingYearly")}</span>
               </div>
             </div>
           )}
@@ -348,7 +357,7 @@ export default function Coach({ refresh, onGoSettings }: Props) {
           {yearlyState === "error" && (
             <div className="coach-report-body coach-report-empty">
               <p>{yearlyError}</p>
-              <button className="coach-generate-btn" onClick={handleGenerateYearly}>다시 아뢰기</button>
+              <button className="coach-generate-btn" onClick={handleGenerateYearly}>{t("common.retry")}</button>
             </div>
           )}
         </div>
@@ -359,15 +368,8 @@ export default function Coach({ refresh, onGoSettings }: Props) {
 
 // ── helpers ──
 
-const SAMPLE_MEMORIAL = `전하, 이달의 가계를 살피어 아뢰옵나이다.
-
-아직 장부에 기록이 없사오니 호조가 따로 올릴 말이 없사옵나이다. 다만 전하께서 식사 한 끼, 벗과의 찻값 한 잔이라도 장부에 올려주시면, 소신이 그 쓰임을 헤아려 치하할 바와 경계할 바를 아뢰옵겠나이다.
-
-매달의 흐름을 살피고, 절용의 방책을 간언함이 호조의 본분이옵니다. 부디 오늘부터 장부를 펼치시옵소서.
-
-소신, 삼가 올리옵나이다.`;
-
-function fmt(n: number) { return n.toLocaleString("ko-KR") + "원"; }
+import i18n from "../lib/i18n";
+import { categoryName } from "../lib/categories";
 
 function fmtDate(iso: string) {
   const d = new Date(iso);
@@ -379,18 +381,17 @@ function formatStats(
   cmp: ReturnType<typeof compareMonths>,
 ) {
   return {
-    totalExpense: fmt(cur.totalExpense),
-    dailyAvg: fmt(cur.dailyAvg),
+    totalExpense: formatMoney(cur.totalExpense),
+    dailyAvg: formatMoney(cur.dailyAvg),
     topCategory: cur.topCategory
-      ? `${cur.topCategory.icon} ${cur.topCategory.name} ${fmt(cur.topCategory.total)}`
-      : "없음",
+      ? `${categoryName(cur.topCategory.categoryId)} ${formatMoney(cur.topCategory.total)}`
+      : i18n.t("coach.noTopCategory"),
     compare: cmp.expenseDiff !== null
       ? `${cmp.expenseDiff > 0 ? "+" : ""}${cmp.expenseDiff}%`
-      : "전월 데이터 없음",
+      : i18n.t("coach.noPrevData"),
     categories: cur.categories.map((c) => ({
-      name: c.name,
-      icon: c.icon,
-      total: fmt(c.total),
+      name: categoryName(c.categoryId),
+      total: formatMoney(c.total),
       percent: c.percent,
     })),
   };

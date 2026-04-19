@@ -1,9 +1,11 @@
+import type { LucideIcon } from "lucide-react";
+
 export type TransactionType = "income" | "expense";
 
 export interface Category {
   id: string;
   name: string;
-  icon: string;
+  Icon: LucideIcon;
   type: TransactionType;
 }
 
@@ -35,4 +37,21 @@ export interface FixedExpense {
   amount: number;
   categoryId: string; // expense category
   day: number; // 매월 지정일 (1-28)
+}
+
+export type AssetKind = "stock" | "crypto" | "commodity" | "cash" | "other";
+export type Currency = "USD" | "KRW" | "EUR" | "JPY" | "GBP";
+
+export interface Asset {
+  id: string;
+  kind: AssetKind;
+  ticker: string;       // "AAPL", "BTC", or free-form for cash/other
+  name: string;         // display name
+  quantity: number;
+  avgCost: number;      // per-unit cost in `currency`
+  currency: Currency;
+  externalId?: string;  // provider-specific id (e.g. CoinGecko coin id)
+  exchange?: string;    // e.g. "NASDAQ", "KRX"
+  note?: string;
+  createdAt: string;
 }
