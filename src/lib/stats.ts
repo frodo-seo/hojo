@@ -2,7 +2,7 @@ import type { Transaction } from "../types";
 import { getCategoryById } from "./categories";
 
 /** 카테고리별 합계 */
-export interface CategoryStat {
+interface CategoryStat {
   categoryId: string;
   name: string;
   total: number;
@@ -11,7 +11,7 @@ export interface CategoryStat {
 }
 
 /** 월간 통계 (JS 로컬 계산, LLM 호출 0) */
-export interface MonthStats {
+interface MonthStats {
   month: string;
   totalExpense: number;
   totalIncome: number;
@@ -25,7 +25,7 @@ export interface MonthStats {
 }
 
 /** 비교 통계 */
-export interface CompareStats {
+interface CompareStats {
   current: MonthStats;
   previous: MonthStats | null;
   expenseDiff: number | null; // 전월 대비 % 변화

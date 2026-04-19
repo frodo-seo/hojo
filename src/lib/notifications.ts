@@ -1,7 +1,7 @@
 import { registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { isNative } from "./platform";
 
-export interface NotificationPayload {
+interface NotificationPayload {
   pkg: string;
   title: string;
   body: string;

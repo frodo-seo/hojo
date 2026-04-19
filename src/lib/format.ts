@@ -1,8 +1,7 @@
-import i18n from "./i18n";
+import i18n, { currentLang } from "./i18n";
 
 function locale(): string {
-  const lang = (i18n.resolvedLanguage || i18n.language || "en").split("-")[0];
-  return lang === "ko" ? "ko-KR" : "en-US";
+  return currentLang() === "ko" ? "ko-KR" : "en-US";
 }
 
 export function formatMoney(amount: number): string {
@@ -64,8 +63,7 @@ function koreanChunk(n: number): string {
 /** 한국어 locale에서만 의미 있는 힌트. 영문 locale에서는 빈 문자열 반환. */
 export function amountKoreanWord(n: number): string {
   if (n <= 0) return "";
-  const lang = (i18n.resolvedLanguage || i18n.language || "en").split("-")[0];
-  if (lang !== "ko") return "";
+  if (currentLang() !== "ko") return "";
   let remaining = n;
   const chunks: string[] = [];
   for (let i = 0; i < KO_BIG_UNITS.length && remaining > 0; i++) {
@@ -91,16 +89,14 @@ export function formatDate(dateStr: string): string {
   const day = d.getDate();
   const weekdays = i18n.t("format.weekdays", { returnObjects: true }) as string[];
   const weekday = weekdays[d.getDay()];
-  const lang = (i18n.resolvedLanguage || i18n.language || "en").split("-")[0];
-  const monthName = lang === "ko" ? String(month) : EN_MONTHS_SHORT[d.getMonth()];
+  const monthName = currentLang() === "ko" ? String(month) : EN_MONTHS_SHORT[d.getMonth()];
   return i18n.t("format.dateWithWeekday", { month, day, monthName, weekday });
 }
 
 export function getMonthLabel(month: string): string {
   const [y, m] = month.split("-");
   const monthNum = parseInt(m);
-  const lang = (i18n.resolvedLanguage || i18n.language || "en").split("-")[0];
-  const monthName = lang === "ko" ? String(monthNum) : EN_MONTHS[monthNum - 1];
+  const monthName = currentLang() === "ko" ? String(monthNum) : EN_MONTHS[monthNum - 1];
   return i18n.t("format.monthLabel", { year: y, month: monthNum, monthName });
 }
 

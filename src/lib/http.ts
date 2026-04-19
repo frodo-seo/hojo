@@ -7,7 +7,7 @@ import { isNative } from "./platform";
  * 웹은 로컬 개발용 — 프로덕션은 APK가 네이티브 경로 사용.
  */
 
-export type HttpResponse<T = unknown> = {
+type HttpResponse<T = unknown> = {
   status: number;
   data: T;
   ok: boolean;

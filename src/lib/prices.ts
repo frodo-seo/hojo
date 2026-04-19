@@ -125,7 +125,7 @@ async function fetchFxRate(base: Currency, quote: Currency): Promise<number> {
   throw new Error(`No FX rate ${base}→${quote}`);
 }
 
-export async function getQuote(asset: Asset): Promise<PriceQuote | null> {
+async function getQuote(asset: Asset): Promise<PriceQuote | null> {
   if (asset.kind === "cash" || asset.kind === "other") {
     return { price: asset.avgCost, currency: asset.currency, asOf: Date.now() };
   }
@@ -149,7 +149,7 @@ export async function getQuote(asset: Asset): Promise<PriceQuote | null> {
 }
 
 /** Convert a quote's native currency to `target`. Returns null if FX lookup fails. */
-export async function convert(
+async function convert(
   amount: number,
   from: Currency,
   to: Currency,
@@ -176,7 +176,7 @@ export interface AssetValuation {
   gainPct: number | null;     // gain / cost
 }
 
-export async function valueAsset(asset: Asset): Promise<AssetValuation> {
+async function valueAsset(asset: Asset): Promise<AssetValuation> {
   const quote = await getQuote(asset);
   const cost = asset.quantity * asset.avgCost;
   let marketValue: number | null = null;

@@ -35,7 +35,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines;
 }
 
-export async function renderMemorialCard(params: {
+async function renderMemorialCard(params: {
   title: string;
   body: string;
 }): Promise<Blob | null> {

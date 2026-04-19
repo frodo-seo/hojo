@@ -4,7 +4,7 @@ import { Preferences } from "@capacitor/preferences";
 const ANTHROPIC_KEY = "hojo.anthropic_key";
 const DATALAB_KEY = "hojo.datalab_key";
 
-export type ApiKeys = {
+type ApiKeys = {
   anthropic: string;
   datalab: string;
 };
