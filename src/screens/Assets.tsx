@@ -13,7 +13,7 @@ type Props = {
   onBack: () => void;
 };
 
-const KINDS: AssetKind[] = ["stock", "crypto", "commodity", "cash", "other"];
+const KINDS: AssetKind[] = ["stock", "crypto", "commodity"];
 
 type CommodityPreset = { ticker: string; nameKey: string; unitHint: string };
 const COMMODITY_PRESETS: CommodityPreset[] = [
@@ -201,8 +201,6 @@ export default function Assets({ refresh, onBack }: Props) {
   const tickerPlaceholder =
     form?.kind === "crypto"
       ? t("assets.tickerPlaceholderCrypto")
-      : form?.kind === "cash" || form?.kind === "other"
-      ? t("assets.tickerPlaceholderCash")
       : t("assets.tickerPlaceholderStock");
 
   return (
@@ -469,18 +467,21 @@ export default function Assets({ refresh, onBack }: Props) {
           />
 
           <div className="asset-form-actions">
-            <button className="save-btn" onClick={handleSave}>
-              {form.id ? t("assets.editButton") : t("assets.addButton")}
-            </button>
-            <button className="linkish" onClick={() => setForm(null)}>
+            <button className="btn-ghost" onClick={() => setForm(null)}>
               {t("common.cancel")}
             </button>
-            {form.id && (
-              <button className="linkish danger" onClick={() => { handleDelete(form.id!); setForm(null); }}>
-                {t("common.delete")}
-              </button>
-            )}
+            <button className="save-btn small" onClick={handleSave}>
+              {form.id ? t("assets.editButton") : t("assets.addButton")}
+            </button>
           </div>
+          {form.id && (
+            <button
+              className="btn-danger-outline"
+              onClick={() => { handleDelete(form.id!); setForm(null); }}
+            >
+              {t("common.delete")}
+            </button>
+          )}
         </div>
       ) : (
         <button className="save-btn" onClick={() => setForm(emptyForm())}>

@@ -39,13 +39,13 @@ export interface FixedExpense {
   day: number; // 매월 지정일 (1-28)
 }
 
-export type AssetKind = "stock" | "crypto" | "commodity" | "cash" | "other";
+export type AssetKind = "stock" | "crypto" | "commodity";
 export type Currency = "USD" | "KRW" | "EUR" | "JPY" | "GBP";
 
 export interface Asset {
   id: string;
   kind: AssetKind;
-  ticker: string;       // "AAPL", "BTC", or free-form for cash/other
+  ticker: string;       // "AAPL", "BTC", "GC=F"
   name: string;         // display name
   quantity: number;
   avgCost: number;      // per-unit cost in `currency`

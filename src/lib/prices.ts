@@ -1,5 +1,12 @@
-import { httpJson } from "./http";
+import { httpJson, httpText } from "./http";
 import type { Asset, Currency } from "../types";
+import { isNative } from "./platform";
+
+// Native (APK) calls providers directly via CapacitorHttp (no CORS).
+// Web dev calls via Vite proxy paths defined in vite.config.ts.
+const STOOQ_BASE = isNative() ? "https://stooq.com" : "/__proxy/stooq";
+const YAHOO1_BASE = isNative() ? "https://query1.finance.yahoo.com" : "/__proxy/yahoo1";
+const YAHOO2_BASE = isNative() ? "https://query2.finance.yahoo.com" : "/__proxy/yahoo2";
 
 /**
  * BYOK-free price adapter.
@@ -43,21 +50,72 @@ function fresh(entry: CacheEntry | null): boolean {
   return !!entry && Date.now() - entry.stored < CACHE_TTL_MS;
 }
 
-async function fetchStockQuote(ticker: string): Promise<PriceQuote> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+const YAHOO_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  Accept: "application/json,text/plain,*/*",
+};
+
+interface YahooChartMeta {
+  regularMarketPrice?: number;
+  currency?: string;
+  longName?: string;
+  shortName?: string;
+  exchangeName?: string;
+  instrumentType?: string;
+}
+
+async function fetchYahooChart(ticker: string): Promise<YahooChartMeta | null> {
+  const url = `${YAHOO1_BASE}/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
   const res = await httpJson<{
     chart?: {
-      result?: Array<{
-        meta?: {
-          regularMarketPrice?: number;
-          currency?: string;
-        };
-      }>;
+      result?: Array<{ meta?: YahooChartMeta }>;
       error?: { description?: string } | null;
     };
-  }>(url);
-  if (!res.ok) throw new Error(`Yahoo request failed (${res.status})`);
-  const meta = res.data.chart?.result?.[0]?.meta;
+  }>(url, { headers: YAHOO_HEADERS });
+  if (!res.ok) return null;
+  return res.data.chart?.result?.[0]?.meta ?? null;
+}
+
+// Suffix → default currency. For bare tickers without suffix, we'll probe `.us` first.
+const STOOQ_SUFFIX_CCY: Record<string, Currency> = {
+  us: "USD", uk: "GBP", de: "EUR", fr: "EUR", jp: "JPY", kr: "KRW",
+};
+
+interface StooqRow {
+  symbol: string;
+  price: number | null;
+  currency: Currency;
+  name: string | null;
+}
+
+async function fetchStooqRow(ticker: string): Promise<StooqRow | null> {
+  // CSV fields: s=symbol, n=name, d2=date, t2=time, o=open, h=high, l=low, c=close, v=volume
+  const url = `${STOOQ_BASE}/q/l/?s=${encodeURIComponent(ticker.toLowerCase())}&f=snd2t2ohlcv&h&e=csv`;
+  const res = await httpText(url);
+  if (!res.ok) return null;
+  const lines = res.text.trim().split("\n");
+  if (lines.length < 2) return null;
+  const cols = lines[1].split(",");
+  const symbol = (cols[0] ?? "").replace(/"/g, "");
+  if (!symbol || symbol === "N/D") return null;
+  const name = (cols[1] ?? "").replace(/"/g, "") || null;
+  const closeStr = cols[6];
+  const price = closeStr && closeStr !== "N/D" ? parseFloat(closeStr) : null;
+  const suffix = symbol.toLowerCase().split(".")[1] ?? "us";
+  const currency = STOOQ_SUFFIX_CCY[suffix] ?? "USD";
+  if (price === null || !Number.isFinite(price)) return null;
+  return { symbol, price, currency, name };
+}
+
+async function fetchStockQuote(ticker: string): Promise<PriceQuote> {
+  const candidates = ticker.includes(".") ? [ticker] : [`${ticker}.us`, ticker];
+  for (const c of candidates) {
+    const row = await fetchStooqRow(c);
+    if (row) return { price: row.price!, currency: row.currency, asOf: Date.now() };
+  }
+  // Yahoo as last resort (works for commodities like GC=F that Stooq doesn't cover well).
+  const meta = await fetchYahooChart(ticker);
   const price = meta?.regularMarketPrice;
   const currency = (meta?.currency || "USD").toUpperCase() as Currency;
   if (typeof price !== "number") throw new Error(`No price for ${ticker}`);
@@ -126,10 +184,6 @@ async function fetchFxRate(base: Currency, quote: Currency): Promise<number> {
 }
 
 async function getQuote(asset: Asset): Promise<PriceQuote | null> {
-  if (asset.kind === "cash" || asset.kind === "other") {
-    return { price: asset.avgCost, currency: asset.currency, asOf: Date.now() };
-  }
-
   const key = `${asset.kind}:${asset.ticker.toUpperCase()}`;
   const cached = cacheGet(key);
   if (cached && fresh(cached)) return cached;
@@ -212,7 +266,22 @@ export async function searchTicker(
   if (q.length < 1) return [];
 
   if (kind === "stock") {
-    const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0`;
+    // Primary: Stooq exact-ticker lookup (no key, works on native).
+    // User inputs a ticker; we probe common suffixes and return a single match with name.
+    const candidates = q.includes(".") ? [q] : [`${q}.us`, q];
+    for (const c of candidates) {
+      const row = await fetchStooqRow(c);
+      if (row) {
+        return [{
+          ticker: row.symbol.toUpperCase(),
+          name: row.name || row.symbol.toUpperCase(),
+          exchange: row.symbol.split(".")[1]?.toUpperCase(),
+        }];
+      }
+    }
+
+    // Fallback: Yahoo search (flaky on native due to crumb requirement).
+    const url = `${YAHOO2_BASE}/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0`;
     const res = await httpJson<{
       quotes?: Array<{
         symbol?: string;
@@ -221,16 +290,15 @@ export async function searchTicker(
         exchange?: string;
         quoteType?: string;
       }>;
-    }>(url);
-    if (!res.ok) return [];
-    const quotes = res.data.quotes ?? [];
+    }>(url, { headers: YAHOO_HEADERS });
+    const quotes = res.ok ? (res.data.quotes ?? []) : [];
     return quotes
-      .filter((q) => q.symbol && (q.quoteType === "EQUITY" || q.quoteType === "ETF" || q.quoteType === "MUTUALFUND" || q.quoteType === "INDEX"))
+      .filter((x) => x.symbol && (x.quoteType === "EQUITY" || x.quoteType === "ETF" || x.quoteType === "MUTUALFUND" || x.quoteType === "INDEX"))
       .slice(0, 8)
-      .map((q) => ({
-        ticker: q.symbol!.toUpperCase(),
-        name: q.longname || q.shortname || q.symbol!,
-        exchange: q.exchange,
+      .map((x) => ({
+        ticker: x.symbol!.toUpperCase(),
+        name: x.longname || x.shortname || x.symbol!,
+        exchange: x.exchange,
       }));
   }
 

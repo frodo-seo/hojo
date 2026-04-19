@@ -2519,7 +2519,38 @@ input[type="number"] {
 
 .asset-form-actions {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
-  margin-top: 6px;
+  margin-top: 16px;
 }
+.asset-form-actions .save-btn.small {
+  flex: 1;
+  margin-top: 0;
+}
+.btn-ghost {
+  flex: 0 0 auto;
+  padding: 12px 20px;
+  border-radius: 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-ghost:active { background: var(--card-alt); }
+.btn-danger-outline {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: transparent;
+  border: 1px solid var(--expense);
+  color: var(--expense);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-danger-outline:active { background: color-mix(in srgb, var(--expense) 12%, transparent); }

@@ -13,6 +13,26 @@ type HttpResponse<T = unknown> = {
   ok: boolean;
 };
 
+export async function httpText(
+  url: string,
+  init: { headers?: Record<string, string> } = {},
+): Promise<{ status: number; text: string; ok: boolean }> {
+  const headers = { ...(init.headers ?? {}) };
+  if (isNative()) {
+    const res = await CapacitorHttp.request({
+      url,
+      method: "GET",
+      headers,
+      responseType: "text",
+    });
+    const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+    return { status: res.status, text, ok: res.status >= 200 && res.status < 300 };
+  }
+  const res = await fetch(url, { headers });
+  const text = await res.text();
+  return { status: res.status, text, ok: res.ok };
+}
+
 export async function httpJson<T = unknown>(
   url: string,
   init: {
