@@ -1,0 +1,1 @@
+- Build reproducibility: synced package-lock, pinned F-Droid builder to Node 22
