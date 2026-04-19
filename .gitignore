@@ -66,3 +66,6 @@ supabase/.temp
 android/key.properties
 *.keystore
 *.jks
+
+# ── Claude Code 로컬 설정 ──
+.claude/
