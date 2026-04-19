@@ -9,21 +9,28 @@ AutoName: Hojo
 Description: |
     Hojo is an open-source, serverless personal finance app.
 
-    All transactions and settings are stored only in the device's local
-    IndexedDB. No cloud sync, no accounts, no central server.
+    Snap one screenshot and Hojo logs expenses, income, and asset
+    holdings — or let it auto-parse payment notifications from card
+    and banking apps. All transactions and settings are stored only
+    in the device's IndexedDB. No cloud sync, no accounts, no central
+    server.
 
-    AI features (receipt OCR, monthly and yearly reports) run on a BYOK
-    (Bring Your Own Key) model — users provide their own Anthropic and
-    Datalab API keys, stored locally on the device.
+    AI features (classification, parsing, monthly and yearly reports)
+    run on a BYOK (Bring Your Own Key) model — users provide their
+    own Anthropic and Datalab API keys, stored locally on the device.
 
     Features:
 
-    * Record expenses and income with categories, memos, and dates
-    * Manage recurring income/expenses
+    * Screenshot-first input — receipts, payment notifications,
+      payslips, bills, brokerage, exchange screens
+    * Notification auto-parsing — Haiku reads card/pay/bank
+      notifications and extracts amount, merchant, and category
+    * 5-way auto classification — expense, income, recurring expense,
+      recurring income, asset trade
+    * Asset portfolio — stocks/ETFs, crypto, commodities with live
+      prices; net worth with FX conversion + pie chart
     * Monthly budgets with usage tracking
-    * Receipt camera OCR with automatic parsing
     * Monthly and yearly AI reports
-    * Portfolio tracking: stocks, crypto, cash with live prices
     * Korean / English UI
     * 9 PM logging reminder
     * CSV export
@@ -64,7 +71,23 @@ Builds:
       - yes
     output: build/outputs/apk/release/app-release-unsigned.apk
 
+  - versionName: 0.3.0
+    versionCode: 3
+    commit: v0.3.0
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y nodejs npm
+    init:
+      - cd ../..
+      - npm ci
+      - npm run build
+      - npx cap sync android
+    gradle:
+      - yes
+    output: build/outputs/apk/release/app-release-unsigned.apk
+
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.2.0
-CurrentVersionCode: 2
+CurrentVersion: 0.3.0
+CurrentVersionCode: 3

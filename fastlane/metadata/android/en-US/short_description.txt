@@ -1,1 +1,1 @@
-Serverless expense tracker. Data stays local, AI runs on your own API keys.
+Serverless finance tracker. Screenshots and notifications auto-logged. BYOK for AI.

@@ -1,0 +1,5 @@
+- Payment notification auto-parsing: Haiku reads card/pay/bank push notifications and logs them automatically
+- "Auto-detected" card on Home; review screen to confirm, save, or dismiss
+- Expanded package watchlist: Hyundai, Shinhan, KB, Samsung, Lotte, Hana, BC, Citi cards; Toss, Toss Bank, KakaoBank, NH, KB Liiv, Shinhan SOL; KakaoPay, NaverPay
+- Pivoted to screenshot-first input: removed manual input UI; image + optional hint only
+- Cleaned up the report tab summary badge
