@@ -37,19 +37,6 @@ type FormState = {
   exchange?: string;
 };
 
-function emptyForm(): FormState {
-  return {
-    id: null,
-    kind: "stock",
-    ticker: "",
-    name: "",
-    quantity: "",
-    avgCost: "",
-    currency: "USD",
-    note: "",
-  };
-}
-
 export default function Assets({ refresh, onBack }: Props) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -483,11 +470,7 @@ export default function Assets({ refresh, onBack }: Props) {
             </button>
           )}
         </div>
-      ) : (
-        <button className="save-btn" onClick={() => setForm(emptyForm())}>
-          {t("assets.addButton")}
-        </button>
-      )}
+      ) : null}
     </div>
   );
 }

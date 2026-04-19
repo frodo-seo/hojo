@@ -128,7 +128,7 @@ export default function Home({ refresh, onEditTx, onOpenAssets }: Props) {
                   <span className="asset-home-ccy">{baseCcy}</span>
                   <span className="asset-home-value">{formatCurrency(assetSummary.value, baseCcy)}</span>
                   <span className={`asset-home-gain ${gainClass}`}>
-                    {gain >= 0 ? "+" : ""}{formatPercent(pct)}
+                    {formatPercent(pct)}
                   </span>
                 </div>
               </div>

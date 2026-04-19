@@ -51,7 +51,7 @@
     "welcomeTitle": "Hojo에 오신 것을 환영합니다",
     "welcomeBody": "내 돈의 흐름을 내 손안에.\n매일의 지출과 수입을 기록하고,\n데이터는 기기에만 저장됩니다.",
     "howtoTitle": "기록하는 법",
-    "howtoBody": "하단의 + 버튼으로\n지출과 수입을 추가하세요.\n영수증 사진으로도 기록할 수 있습니다.",
+    "howtoBody": "하단의 + 버튼으로\n스크린샷을 올리면 AI가\n지출·수입·자산을 자동 기록합니다.",
     "reportTitle": "월간 리포트",
     "reportBody": "달이 바뀌면 AI가\n이번 달 지출을 분석해\n간결한 리포트를 작성합니다."
   },
@@ -87,12 +87,6 @@
     "editButton": "수정 완료",
     "confirmLargeAmount": "{{amount}}은(는) 큰 금액입니다. 정말로 저장할까요?"
   },
-  "addSheet": {
-    "scanTitle": "지출 스캔",
-    "scanSub": "영수증, 결제 캡쳐 등 사진으로 자동 입력",
-    "manualTitle": "직접 입력",
-    "manualSub": "금액과 카테고리 직접 선택"
-  },
   "budget": {
     "sectionTitle": "{{month}} 예산",
     "current": "현재 예산",
@@ -106,21 +100,11 @@
   },
   "fixedIncome": {
     "title": "고정 수입",
-    "desc": "매달 자동으로 수입에 반영됩니다.",
-    "namePlaceholder": "이름 (예: 급여)",
-    "amountPlaceholder": "금액",
-    "addButton": "고정 수입 추가",
-    "added": "추가됨!"
+    "desc": "매달 자동으로 수입에 반영됩니다."
   },
   "fixedExpense": {
     "title": "고정 지출",
     "desc": "매달 지정한 날짜에 자동으로 지출에 반영됩니다.",
-    "namePlaceholder": "이름 (예: 통신비, 월세)",
-    "amountPlaceholder": "금액",
-    "dayPlaceholder": "일",
-    "dayUnit": "일",
-    "addButton": "고정 지출 추가",
-    "added": "추가됨!",
     "monthlyOn": "매월 {{day}}일"
   },
   "reminder": {
@@ -209,19 +193,48 @@
     "noPrevData": "전월 데이터 없음"
   },
   "receipt": {
-    "title": "지출 스캔",
-    "uploadTitle": "지출 이미지를 선택하세요",
-    "uploadSub": "영수증, 결제 알림, 배달앱 캡쳐 등",
-    "compressing": "이미지를 처리하는 중...",
-    "scanning": "영수증을 분석하는 중...",
     "scanFailed": "스캔에 실패했습니다",
-    "imageFailed": "이미지를 가져오지 못했습니다",
+    "imageFailed": "이미지를 가져오지 못했습니다"
+  },
+  "scan": {
+    "title": "스캔",
+    "uploadTitle": "이미지를 선택하세요",
+    "uploadSub": "영수증·결제·급여명세·증권·거래소 스크린샷 모두",
+    "hintLabel": "추가 설명 (선택)",
+    "hintPlaceholder": "예: 커피 값만 기록해줘 / 이건 월급이야 / 평단가 12,300원",
+    "stageOcr": "텍스트 추출 중...",
+    "stageClassify": "내용 분류 중...",
+    "stageParse": "세부 항목 파싱 중...",
+    "unknownKind": "이미지 유형을 식별하지 못했습니다. 힌트를 추가하거나 다른 이미지를 올려주세요.",
+    "saveFailed": "저장 실패",
+    "kindLabel": "분류",
+    "kind_expense": "지출",
+    "kind_income": "수입",
+    "kind_fixed_expense": "고정 지출",
+    "kind_fixed_income": "고정 수입",
+    "kind_asset_trade": "자산",
+    "retry": "다시",
+    "save": "저장",
+    "saving": "저장 중...",
     "store": "매장",
+    "date": "날짜",
+    "amount": "금액",
+    "category": "카테고리",
+    "source": "출처",
+    "name": "이름",
+    "monthlyAmount": "매월 금액",
+    "dueDay": "결제일 (1-28)",
+    "assetKind": "종류",
+    "ticker": "티커",
+    "quantity": "수량",
+    "avgCost": "평단가",
+    "currency": "통화",
+    "assetKindStock": "주식/ETF",
+    "assetKindCrypto": "암호화폐",
+    "assetKindCommodity": "원자재",
     "pickCategory": "카테고리 선택",
-    "pickCategoryPrompt": "카테고리를 선택해주세요",
-    "total": "합계 ({{count}}건)",
-    "saveAll": "{{count}}건 전체 저장",
-    "noItems": "인식된 품목이 없습니다"
+    "avgCostRequired": "평단가를 입력해주세요",
+    "avgCostHint": "스크린샷에 없어 수기 입력 필요"
   },
   "assets": {
     "title": "자산",

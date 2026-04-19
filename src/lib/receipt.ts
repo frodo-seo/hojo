@@ -1,5 +1,4 @@
-import { getApiKeys } from "./apiKeys";
-import { httpJson, httpMultipart } from "./http";
+import { httpJson } from "./http";
 import { currentLang } from "./i18n";
 
 function msg(ko: string, en: string): string {
@@ -106,69 +105,10 @@ const TOOL = {
   },
 };
 
-function cleanOcr(md: string): string {
-  return md
-    .replace(/!\[.*?\]\(.*?\)/g, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/^#{1,6}\s*/gm, "")
-    .replace(/\*{1,3}(.*?)\*{1,3}/g, "$1")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\\([*_~`])/g, "$1")
-    .replace(/\|[-:]+\|[-:|\s]*/g, "")
-    .replace(/\|/g, " ")
-    .replace(/^[-*_]{3,}$/gm, "")
-    .replace(/[ \t]+/g, " ")
-    .split("\n").map((l) => l.trim()).filter(Boolean).join("\n")
-    .trim();
-}
-
-async function datalabOcr(base64: string, mediaType: string, datalabKey: string): Promise<string> {
-  const ext = mediaType === "image/png" ? "png" : "jpg";
-  const initRes = await httpMultipart<{
-    request_check_url?: string;
-    status?: string;
-    markdown?: string;
-  }>(
-    "https://www.datalab.to/api/v1/convert",
-    {
-      file: { base64, mediaType, filename: `receipt.${ext}` },
-      output_format: "markdown",
-      mode: "accurate",
-    },
-    { "X-API-Key": datalabKey },
-  );
-  if (!initRes.ok) {
-    throw new Error(msg(`OCR 요청 실패 (${initRes.status})`, `OCR request failed (${initRes.status})`));
-  }
-
-  let data = initRes.data;
-  if (data.request_check_url && data.status !== "complete") {
-    for (let i = 0; i < 50; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      const poll = await httpJson<{ status?: string; markdown?: string }>(
-        data.request_check_url,
-        { method: "GET", headers: { "X-API-Key": datalabKey } },
-      );
-      if (!poll.ok) throw new Error(msg(`OCR 조회 실패 (${poll.status})`, `OCR poll failed (${poll.status})`));
-      if (poll.data.status === "complete") {
-        data = poll.data;
-        break;
-      }
-      if (poll.data.status === "failed") {
-        throw new Error(msg("OCR 처리에 실패했습니다", "OCR processing failed"));
-      }
-    }
-  }
-
-  const raw = data.markdown || "";
-  if (!raw) throw new Error(msg(
-    "글자를 읽지 못했습니다. 더 밝고 또렷한 사진으로 다시 시도해주세요.",
-    "Couldn't read any text. Try a brighter, sharper photo.",
-  ));
-  return raw;
-}
-
-async function sonnetParse(cleaned: string, anthropicKey: string): Promise<ParsedReceipt & { is_receipt: boolean }> {
+async function haikuParse(cleaned: string, anthropicKey: string, userHint?: string): Promise<ParsedReceipt & { is_receipt: boolean }> {
+  const hintBlock = userHint?.trim()
+    ? `\n\n사용자 지시 (최우선 반영):\n${userHint.trim()}\n`
+    : "";
   const res = await httpJson<{
     content?: Array<{ type: string; input?: unknown }>;
   }>(
@@ -181,14 +121,14 @@ async function sonnetParse(cleaned: string, anthropicKey: string): Promise<Parse
         "anthropic-dangerous-direct-browser-access": "true",
       },
       body: {
-        model: "claude-sonnet-4-6",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         tools: [TOOL],
         tool_choice: { type: "tool", name: "parse_receipt" },
         messages: [
           {
             role: "user",
-            content: `먼저 텍스트가 지출 증빙(영수증/카드결제/배달앱/송금 캡쳐 등)인지 판단. 아니면 is_receipt=false, items=[], total=0. 맞으면 is_receipt=true로 품목명·가격·카테고리 추출(품목 1개여도 추출). 카테고리 불확실하면 null. 카테고리: food=식비 cafe=카페 transport=교통 housing=주거 living=생활 shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타\n\n${cleaned}`,
+            content: `먼저 텍스트가 지출 증빙(영수증/카드결제/배달앱/송금 캡쳐 등)인지 판단. 아니면 is_receipt=false, items=[], total=0. 맞으면 is_receipt=true로 품목명·가격·카테고리 추출(품목 1개여도 추출). 카테고리 불확실하면 null. 카테고리: food=식비 cafe=카페 transport=교통 housing=주거 living=생활 shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타${hintBlock}\n\nOCR 텍스트:\n${cleaned}`,
           },
         ],
       },
@@ -202,30 +142,93 @@ async function sonnetParse(cleaned: string, anthropicKey: string): Promise<Parse
   return toolUse.input as ParsedReceipt & { is_receipt: boolean };
 }
 
-/** 영수증 이미지 → 파싱 결과. BYOK: Datalab + Anthropic 직접 호출. */
-export async function scanReceipt(
-  base64: string,
-  mediaType: string,
+/** OCR 이후 cleaned 텍스트에서만 영수증 파싱. 분류 Agent 경유 플로우용. */
+export async function parseExpenseFromText(
+  cleaned: string,
+  anthropicKey: string,
+  userHint?: string,
 ): Promise<ParsedReceipt> {
-  const { anthropic, datalab } = await getApiKeys();
-  if (!anthropic && !datalab) throw new ApiKeyMissingError("both");
-  if (!datalab) throw new ApiKeyMissingError("datalab");
-  if (!anthropic) throw new ApiKeyMissingError("anthropic");
-
-  const rawOcr = await datalabOcr(base64, mediaType, datalab);
-  const cleaned = cleanOcr(rawOcr);
-  const parsed = await sonnetParse(cleaned, anthropic);
-
-  if (parsed.is_receipt === false) {
-    throw new Error(msg(
-      "영수증이나 결제 내역이 아닌 것 같습니다. 지출 증빙 사진을 올려주세요.",
-      "This doesn't look like a receipt or payment record. Please upload an expense proof.",
-    ));
-  }
+  const parsed = await haikuParse(cleaned, anthropicKey, userHint);
   return {
     store: parsed.store,
     date: parsed.date,
     items: parsed.items,
     total: parsed.total,
   };
+}
+
+export interface ParsedFixedExpense {
+  name: string;            // "통신비", "넷플릭스" 등
+  amount: number;
+  categoryId: string;      // 지출 카테고리
+  day: number;             // 매월 결제일 (1-28). 불명확하면 1.
+}
+
+const FIXED_EXPENSE_TOOL = {
+  name: "parse_fixed_expense",
+  description: "매월 반복 지출 (통신비·월세·구독 서비스 등)",
+  input_schema: {
+    type: "object",
+    properties: {
+      name: { type: "string", description: "표시용 이름 (예: 통신비, 넷플릭스)" },
+      amount: { type: "number" },
+      categoryId: {
+        type: "string",
+        enum: [
+          "food", "cafe", "transport", "housing", "living",
+          "shopping", "health", "culture", "education", "event", "etc-expense",
+        ],
+        description: "통신·관리비·월세=housing 구독(OTT)=culture 헬스장=health 등",
+      },
+      day: {
+        type: "number",
+        description: "매월 결제일 (1-28). 명시되지 않으면 1.",
+      },
+    },
+    required: ["name", "amount", "categoryId", "day"],
+  },
+};
+
+/** 고정 지출 파싱 (청구서·자동이체 고지 등) */
+export async function parseFixedExpense(
+  cleaned: string,
+  anthropicKey: string,
+  userHint?: string,
+): Promise<ParsedFixedExpense> {
+  const hintBlock = userHint?.trim()
+    ? `\n\n사용자 지시 (최우선 반영):\n${userHint.trim()}\n`
+    : "";
+  const res = await httpJson<{
+    content?: Array<{ type: string; input?: unknown }>;
+  }>(
+    "https://api.anthropic.com/v1/messages",
+    {
+      method: "POST",
+      headers: {
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: {
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 512,
+        tools: [FIXED_EXPENSE_TOOL],
+        tool_choice: { type: "tool", name: "parse_fixed_expense" },
+        messages: [
+          {
+            role: "user",
+            content: `다음 OCR 텍스트는 매월 반복 지출 고지서 또는 구독 결제입니다. 이름·금액·카테고리·매월 결제일을 추출하세요. 결제일은 1-28 사이로 정규화.${hintBlock}\n\nOCR 텍스트:\n${cleaned}`,
+          },
+        ],
+      },
+    },
+  );
+  if (!res.ok) {
+    throw new Error(msg(`AI 파싱 실패 (${res.status})`, `AI parsing failed (${res.status})`));
+  }
+  const toolUse = res.data.content?.find((c) => c.type === "tool_use");
+  if (!toolUse?.input) throw new Error(msg("파싱 결과를 받지 못했습니다", "No parse result returned"));
+  const out = toolUse.input as ParsedFixedExpense;
+  out.day = Math.max(1, Math.min(28, Math.round(out.day || 1)));
+  return out;
 }

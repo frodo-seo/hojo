@@ -51,7 +51,7 @@
     "welcomeTitle": "Welcome to Hojo",
     "welcomeBody": "Your money, in your hands.\nLog income and expenses daily —\neverything stays on your device.",
     "howtoTitle": "How to log",
-    "howtoBody": "Tap the + button below\nto add an expense or income.\nYou can also scan a receipt photo.",
+    "howtoBody": "Tap the + button below\nto upload a screenshot — AI auto-logs\nexpenses, income, and assets.",
     "reportTitle": "Monthly report",
     "reportBody": "At the end of each month,\nAI analyzes your spending and\nwrites a concise report."
   },
@@ -87,12 +87,6 @@
     "editButton": "Save changes",
     "confirmLargeAmount": "{{amount}} is a large amount. Save anyway?"
   },
-  "addSheet": {
-    "scanTitle": "Scan expense",
-    "scanSub": "Auto-fill from receipt or payment screenshot",
-    "manualTitle": "Manual entry",
-    "manualSub": "Enter amount and category yourself"
-  },
   "budget": {
     "sectionTitle": "{{month}} budget",
     "current": "Current budget",
@@ -106,21 +100,11 @@
   },
   "fixedIncome": {
     "title": "Recurring income",
-    "desc": "Automatically added to income every month.",
-    "namePlaceholder": "Name (e.g. Salary)",
-    "amountPlaceholder": "Amount",
-    "addButton": "Add recurring income",
-    "added": "Added!"
+    "desc": "Automatically added to income every month."
   },
   "fixedExpense": {
     "title": "Recurring expense",
     "desc": "Automatically added to expenses on the chosen day each month.",
-    "namePlaceholder": "Name (e.g. Internet, Rent)",
-    "amountPlaceholder": "Amount",
-    "dayPlaceholder": "Day",
-    "dayUnit": "day",
-    "addButton": "Add recurring expense",
-    "added": "Added!",
     "monthlyOn": "Monthly on day {{day}}"
   },
   "reminder": {
@@ -209,19 +193,48 @@
     "noPrevData": "No previous month data"
   },
   "receipt": {
-    "title": "Scan expense",
-    "uploadTitle": "Pick an expense image",
-    "uploadSub": "Receipt, payment notification, delivery app screenshot, etc.",
-    "compressing": "Processing image...",
-    "scanning": "Reading the receipt...",
     "scanFailed": "Scan failed",
-    "imageFailed": "Couldn't read the image",
+    "imageFailed": "Couldn't read the image"
+  },
+  "scan": {
+    "title": "Scan",
+    "uploadTitle": "Pick an image",
+    "uploadSub": "Receipt, payment, payslip, brokerage, exchange — all works",
+    "hintLabel": "Extra note (optional)",
+    "hintPlaceholder": "e.g. Only log the coffee / This is salary / Avg cost 12.50",
+    "stageOcr": "Extracting text...",
+    "stageClassify": "Classifying...",
+    "stageParse": "Parsing details...",
+    "unknownKind": "Couldn't identify the image type. Add a hint or try another image.",
+    "saveFailed": "Save failed",
+    "kindLabel": "Type",
+    "kind_expense": "Expense",
+    "kind_income": "Income",
+    "kind_fixed_expense": "Recurring expense",
+    "kind_fixed_income": "Recurring income",
+    "kind_asset_trade": "Asset",
+    "retry": "Retry",
+    "save": "Save",
+    "saving": "Saving...",
     "store": "Store",
+    "date": "Date",
+    "amount": "Amount",
+    "category": "Category",
+    "source": "Source",
+    "name": "Name",
+    "monthlyAmount": "Monthly amount",
+    "dueDay": "Due day (1-28)",
+    "assetKind": "Asset type",
+    "ticker": "Ticker",
+    "quantity": "Quantity",
+    "avgCost": "Avg cost",
+    "currency": "Currency",
+    "assetKindStock": "Stock / ETF",
+    "assetKindCrypto": "Crypto",
+    "assetKindCommodity": "Commodity",
     "pickCategory": "Pick category",
-    "pickCategoryPrompt": "Please pick a category",
-    "total": "Total ({{count}} items)",
-    "saveAll": "Save all {{count}} items",
-    "noItems": "No items recognized"
+    "avgCostRequired": "Please enter average cost",
+    "avgCostHint": "Not in screenshot — enter manually"
   },
   "assets": {
     "title": "Assets",

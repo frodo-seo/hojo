@@ -2554,3 +2554,78 @@ input[type="number"] {
   transition: background 0.15s;
 }
 .btn-danger-outline:active { background: color-mix(in srgb, var(--expense) 12%, transparent); }
+
+/* ===== Scan Entry ===== */
+.scan-hint-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.scan-hint-label { font-size: 12px; color: var(--text-dim); }
+.scan-hint-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+}
+.scan-hint-input:focus { outline: none; border-color: var(--primary); }
+
+.scan-preview { display: flex; flex-direction: column; gap: 14px; }
+
+.scan-kind-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+.scan-kind-label { font-size: 13px; color: var(--text-dim); }
+.scan-kind-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.scan-fields { display: flex; flex-direction: column; gap: 10px; }
+.scan-field { display: flex; flex-direction: column; gap: 4px; }
+.scan-field-label { font-size: 12px; color: var(--text-dim); }
+.scan-field input, .scan-field select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+}
+.scan-field input:focus, .scan-field select:focus { outline: none; border-color: var(--primary); }
+
+.scan-items { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.scan-item-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 120px 28px;
+  gap: 6px;
+  align-items: center;
+}
+.scan-item-row input, .scan-item-row select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  min-width: 0;
+}
+.scan-item-remove {
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-dim); font-size: 16px; cursor: pointer;
+}
+
+.scan-actions { display: flex; gap: 8px; margin-top: 8px; }
+.scan-actions .save-btn { flex: 1; }

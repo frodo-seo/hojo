@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getBudget, setBudget, deleteBudget,
-  getFixedIncomes, addFixedIncome, deleteFixedIncome,
-  getFixedExpenses, addFixedExpense, deleteFixedExpense,
+  getFixedIncomes, deleteFixedIncome,
+  getFixedExpenses, deleteFixedExpense,
   getAllTransactions,
 } from "../lib/db";
 import type { FixedIncome, FixedExpense } from "../types";
@@ -31,10 +31,6 @@ export default function Settings({ refresh, onRefresh }: Props) {
   const [saved, setSaved] = useState(false);
 
   const [fixedList, setFixedList] = useState<FixedIncome[]>([]);
-  const [newName, setNewName] = useState("");
-  const [newAmount, setNewAmount] = useState("");
-  const [newCat, setNewCat] = useState("salary");
-  const [incomeSaved, setIncomeSaved] = useState(false);
 
   const [reminderOn, setReminderOn] = useState(isReminderEnabled());
   const [reminderMsg, setReminderMsg] = useState("");
@@ -50,11 +46,6 @@ export default function Settings({ refresh, onRefresh }: Props) {
   const [keysMsg, setKeysMsg] = useState("");
 
   const [fixedExpList, setFixedExpList] = useState<FixedExpense[]>([]);
-  const [expName, setExpName] = useState("");
-  const [expAmount, setExpAmount] = useState("");
-  const [expDay, setExpDay] = useState("1");
-  const [expCat, setExpCat] = useState(EXPENSE_CATEGORIES[0]?.id ?? "food");
-  const [expenseSaved, setExpenseSaved] = useState(false);
 
   useEffect(() => {
     getBudget(month).then((b) => {
@@ -125,16 +116,6 @@ export default function Settings({ refresh, onRefresh }: Props) {
     onRefresh();
   }
 
-  async function loadFixed() {
-    const list = await getFixedIncomes();
-    setFixedList(list);
-  }
-
-  async function loadFixedExp() {
-    const list = await getFixedExpenses();
-    setFixedExpList(list.sort((a, b) => a.day - b.day));
-  }
-
   async function handleSaveBudget() {
     const amt = parseAmountInput(budgetAmount);
     if (!amt || amt <= 0) return;
@@ -152,56 +133,16 @@ export default function Settings({ refresh, onRefresh }: Props) {
     onRefresh();
   }
 
-  async function handleAddFixed() {
-    const amt = parseAmountInput(newAmount);
-    if (!newName.trim() || !amt || amt <= 0) return;
-    await addFixedIncome({
-      id: crypto.randomUUID(),
-      name: newName.trim(),
-      amount: amt,
-      categoryId: newCat,
-    });
-    setNewName("");
-    setNewAmount("");
-    setNewCat("salary");
-    setIncomeSaved(true);
-    setTimeout(() => setIncomeSaved(false), 1500);
-    onRefresh();
-    loadFixed();
-  }
-
   async function handleDeleteFixed(id: string) {
     await deleteFixedIncome(id);
     onRefresh();
-    loadFixed();
-  }
-
-  async function handleAddFixedExp() {
-    const amt = parseAmountInput(expAmount);
-    const day = parseInt(expDay);
-    if (!expName.trim() || !amt || amt <= 0) return;
-    if (!day || day < 1 || day > 31) return;
-    await addFixedExpense({
-      id: crypto.randomUUID(),
-      name: expName.trim(),
-      amount: amt,
-      categoryId: expCat,
-      day,
-    });
-    setExpName("");
-    setExpAmount("");
-    setExpDay("1");
-    setExpCat(EXPENSE_CATEGORIES[0]?.id ?? "food");
-    setExpenseSaved(true);
-    setTimeout(() => setExpenseSaved(false), 1500);
-    onRefresh();
-    loadFixedExp();
+    getFixedIncomes().then(setFixedList);
   }
 
   async function handleDeleteFixedExp(id: string) {
     await deleteFixedExpense(id);
     onRefresh();
-    loadFixedExp();
+    getFixedExpenses().then((list) => setFixedExpList(list.sort((a, b) => a.day - b.day)));
   }
 
   async function handleReminderToggle() {
@@ -322,49 +263,6 @@ export default function Settings({ refresh, onRefresh }: Props) {
           </div>
         )}
 
-        <div className="fixed-form">
-          <input
-            type="text"
-            className="form-input"
-            placeholder={t("fixedIncome.namePlaceholder")}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
-          <div className="fixed-form-row">
-            <div className="budget-input-wrap">
-              <input
-                type="text"
-                className="form-input"
-                placeholder={t("fixedIncome.amountPlaceholder")}
-                value={newAmount}
-                onChange={(e) => setNewAmount(formatAmountInput(e.target.value))}
-                inputMode="numeric"
-              />
-              {amountUnit && <span className="budget-unit">{amountUnit}</span>}
-            </div>
-            <select
-              className="form-input fixed-cat-select"
-              value={newCat}
-              onChange={(e) => setNewCat(e.target.value)}
-            >
-              {INCOME_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {categoryName(c.id)}
-                </option>
-              ))}
-            </select>
-          </div>
-          {amountKoreanWord(parseAmountInput(newAmount)) && (
-            <p className="amount-hint">{amountKoreanWord(parseAmountInput(newAmount))}</p>
-          )}
-          <button
-            className="save-btn small"
-            onClick={handleAddFixed}
-            disabled={!newName.trim() || parseAmountInput(newAmount) <= 0}
-          >
-            {incomeSaved ? t("fixedIncome.added") : t("fixedIncome.addButton")}
-          </button>
-        </div>
       </section>
 
       <section className="settings-section">
@@ -396,68 +294,6 @@ export default function Settings({ refresh, onRefresh }: Props) {
           </div>
         )}
 
-        <div className="fixed-form">
-          <input
-            type="text"
-            className="form-input"
-            placeholder={t("fixedExpense.namePlaceholder")}
-            value={expName}
-            onChange={(e) => setExpName(e.target.value)}
-          />
-          <div className="fixed-form-row">
-            <div className="budget-input-wrap">
-              <input
-                type="text"
-                className="form-input"
-                placeholder={t("fixedExpense.amountPlaceholder")}
-                value={expAmount}
-                onChange={(e) => setExpAmount(formatAmountInput(e.target.value))}
-                inputMode="numeric"
-              />
-              {amountUnit && <span className="budget-unit">{amountUnit}</span>}
-            </div>
-            <div className="budget-input-wrap fixed-day-wrap">
-              <input
-                type="number"
-                className="form-input"
-                placeholder={t("fixedExpense.dayPlaceholder")}
-                min={1}
-                max={31}
-                value={expDay}
-                onChange={(e) => setExpDay(e.target.value)}
-                inputMode="numeric"
-              />
-              <span className="budget-unit">{t("fixedExpense.dayUnit")}</span>
-            </div>
-          </div>
-          <select
-            className="form-input"
-            value={expCat}
-            onChange={(e) => setExpCat(e.target.value)}
-          >
-            {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {categoryName(c.id)}
-              </option>
-            ))}
-          </select>
-          {amountKoreanWord(parseAmountInput(expAmount)) && (
-            <p className="amount-hint">{amountKoreanWord(parseAmountInput(expAmount))}</p>
-          )}
-          <button
-            className="save-btn small"
-            onClick={handleAddFixedExp}
-            disabled={
-              !expName.trim() ||
-              parseAmountInput(expAmount) <= 0 ||
-              !expDay ||
-              parseInt(expDay) < 1 ||
-              parseInt(expDay) > 31
-            }
-          >
-            {expenseSaved ? t("fixedExpense.added") : t("fixedExpense.addButton")}
-          </button>
-        </div>
       </section>
 
       <section className="settings-section">
