@@ -196,6 +196,22 @@
     "scanFailed": "스캔에 실패했습니다",
     "imageFailed": "이미지를 가져오지 못했습니다"
   },
+  "notifInbox": {
+    "title": "자동 감지 내역",
+    "subtitle": "결제 알림에서 자동 추출. 확인하고 저장하세요.",
+    "homeBadge": "자동 감지 {{count}}건",
+    "empty": "대기 중인 알림이 없습니다",
+    "saveAll": "전부 저장",
+    "saving": "저장 중...",
+    "saveOne": "저장",
+    "dismiss": "무시",
+    "pickCategory": "카테고리 선택",
+    "storeLabel": "가맹점",
+    "amountLabel": "금액",
+    "dateLabel": "날짜",
+    "categoryLabel": "카테고리",
+    "unknownStore": "가맹점 미상"
+  },
   "scan": {
     "title": "스캔",
     "uploadTitle": "이미지를 선택하세요",

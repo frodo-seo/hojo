@@ -1,7 +1,7 @@
 import type { Transaction, Budget, FixedIncome, FixedExpense, Asset } from "../types";
 
 const DB_NAME = "sobi-ilgi";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -27,6 +27,10 @@ function open(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains("assets")) {
         db.createObjectStore("assets", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("pending_notifs")) {
+        const store = db.createObjectStore("pending_notifs", { keyPath: "id" });
+        store.createIndex("status", "status", { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -235,6 +239,56 @@ export async function applyFixedExpenses(month: string): Promise<boolean> {
   }
 
   return anyApplied;
+}
+
+// --- Pending notifications (auto-detected payments) ---
+
+export type NotifStatus = "pending" | "dismissed";
+
+export interface PendingNotif {
+  id: string;                 // sbn.key (dedup)
+  pkg: string;
+  title: string;
+  body: string;
+  postedAt: number;
+  parsedAt: string;
+  status: NotifStatus;
+  amount: number;
+  store?: string;
+  categoryId?: string;        // 예: "cafe"
+  date: string;               // YYYY-MM-DD
+}
+
+export async function addPendingNotif(n: PendingNotif): Promise<void> {
+  const store = await tx("pending_notifs", "readwrite");
+  await req(store.put(n));
+}
+
+export async function hasNotifKey(id: string): Promise<boolean> {
+  const store = await tx("pending_notifs", "readonly");
+  const found = await req(store.get(id));
+  return !!found;
+}
+
+export async function getPendingNotifs(): Promise<PendingNotif[]> {
+  const store = await tx("pending_notifs", "readonly");
+  const all = await req(store.getAll());
+  return (all as PendingNotif[])
+    .filter((n) => n.status === "pending")
+    .sort((a, b) => b.postedAt - a.postedAt);
+}
+
+export async function updatePendingNotif(n: PendingNotif): Promise<void> {
+  const store = await tx("pending_notifs", "readwrite");
+  await req(store.put(n));
+}
+
+export async function dismissPendingNotif(id: string): Promise<void> {
+  const store = await tx("pending_notifs", "readwrite");
+  const found = (await req(store.get(id))) as PendingNotif | undefined;
+  if (!found) return;
+  found.status = "dismissed";
+  await req(store.put(found));
 }
 
 /** 해당 월에 고정수입이 이미 반영됐는지 확인하고, 안 됐으면 반영 */

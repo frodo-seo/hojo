@@ -33,11 +33,29 @@ class HojoNotificationListener : NotificationListenerService() {
 
     companion object {
         val WATCHED_PACKAGES = setOf(
-            "com.nhn.android.search",        // 네이버(페이 알림 포함 가능)
-            "com.naver.nownpay",             // 네이버페이 (추정)
+            // 카드사
             "com.hyundaicard.appcard",       // 현대카드
-            "com.kakaopay.app",              // 카카오페이 (실기기 확인 필요)
-            "com.kakao.talk"                 // 카카오톡 송금 알림도 참고
+            "nh.smart.card",                 // 농협카드
+            "com.shcard.smartpay",           // 신한카드
+            "com.kbcard.cxh.appcard",        // 국민카드
+            "kr.co.samsungcard.mpocket",     // 삼성카드
+            "com.lcacApp",                   // 롯데카드
+            "com.hanaskcard.paycla",         // 하나카드
+            "com.citibank.cardapp",          // 씨티카드
+            "com.bccard.smartcard",          // BC카드
+            // 은행/뱅크
+            "viva.republica.toss",           // 토스
+            "com.tossbank.mobile",           // 토스뱅크
+            "com.kakaobank.channel",         // 카카오뱅크
+            "nh.smart",                      // NH스마트뱅킹
+            "com.kbstar.liivbank",           // KB리브
+            "com.shinhan.sbanking",          // 신한SOL
+            // 간편결제
+            "com.kakaopay.app",              // 카카오페이
+            "com.naver.nownpay",             // 네이버페이
+            "com.nhn.android.search",        // 네이버
+            // 메신저 (송금 알림)
+            "com.kakao.talk"
         )
 
         fun isListenerEnabled(context: Context): Boolean {

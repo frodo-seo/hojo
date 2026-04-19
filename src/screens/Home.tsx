@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Transaction, Budget, Asset } from "../types";
-import { getTransactionsByMonth, getBudget, applyFixedIncomes, applyFixedExpenses, getAssets } from "../lib/db";
+import { getTransactionsByMonth, getBudget, applyFixedIncomes, applyFixedExpenses, getAssets, getPendingNotifs } from "../lib/db";
 import { valuePortfolio, valuationsInBase, type BaseValued } from "../lib/prices";
 import { useBaseCurrency } from "../lib/settings";
 import { formatMoney, formatCurrency, formatPercent, currentMonth } from "../lib/format";
@@ -14,16 +14,22 @@ type Props = {
   refresh: number;
   onEditTx: (tx: Transaction) => void;
   onOpenAssets: () => void;
+  onOpenInbox: () => void;
 };
 
-export default function Home({ refresh, onEditTx, onOpenAssets }: Props) {
+export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: Props) {
   const { t } = useTranslation();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budget, setBudget] = useState<Budget | undefined>();
   const [month, setMonth] = useState(currentMonth());
   const [assets, setAssets] = useState<Asset[]>([]);
   const [based, setBased] = useState<BaseValued[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const baseCcy = useBaseCurrency();
+
+  useEffect(() => {
+    getPendingNotifs().then((list) => setPendingCount(list.length));
+  }, [refresh]);
 
   useEffect(() => {
     async function load() {
@@ -107,6 +113,16 @@ export default function Home({ refresh, onEditTx, onOpenAssets }: Props) {
       </div>
 
       {budget && <BudgetBar budget={budget.amount} spent={expense} />}
+
+      {pendingCount > 0 && (
+        <button className="notif-inbox-card" onClick={onOpenInbox}>
+          <span className="notif-inbox-dot" />
+          <span className="notif-inbox-label">{t("notifInbox.homeBadge", { count: pendingCount })}</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="notif-inbox-arrow">
+            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
 
       <button className="asset-home-card" onClick={onOpenAssets}>
         <div className="asset-home-head">

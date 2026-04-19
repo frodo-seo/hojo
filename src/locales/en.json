@@ -196,6 +196,22 @@
     "scanFailed": "Scan failed",
     "imageFailed": "Couldn't read the image"
   },
+  "notifInbox": {
+    "title": "Auto-detected",
+    "subtitle": "Extracted from payment notifications. Review and save.",
+    "homeBadge": "{{count}} auto-detected",
+    "empty": "No pending notifications",
+    "saveAll": "Save all",
+    "saving": "Saving...",
+    "saveOne": "Save",
+    "dismiss": "Dismiss",
+    "pickCategory": "Pick category",
+    "storeLabel": "Store",
+    "amountLabel": "Amount",
+    "dateLabel": "Date",
+    "categoryLabel": "Category",
+    "unknownStore": "Unknown store"
+  },
   "scan": {
     "title": "Scan",
     "uploadTitle": "Pick an image",

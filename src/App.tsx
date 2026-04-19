@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { subscribeNotifications } from "./lib/notifications";
+import { handleNotification } from "./lib/notifHandler";
 import type { Transaction } from "./types";
 import Home from "./screens/Home";
 import Add from "./screens/Add";
@@ -8,6 +9,7 @@ import Coach from "./screens/Coach";
 import Settings from "./screens/Settings";
 import ScanEntry from "./screens/ScanEntry";
 import Assets from "./screens/Assets";
+import NotifInbox from "./screens/NotifInbox";
 import Onboarding from "./screens/Onboarding";
 import TabBar, { type Tab } from "./components/TabBar";
 import "./App.css";
@@ -16,7 +18,8 @@ type Screen =
   | { name: "tabs"; tab: Tab }
   | { name: "add"; editTx?: Transaction }
   | { name: "scan" }
-  | { name: "assets" };
+  | { name: "assets" }
+  | { name: "inbox" };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: "tabs", tab: "home" });
@@ -31,12 +34,11 @@ export default function App() {
     let handle: Awaited<ReturnType<typeof subscribeNotifications>> | null = null;
     (async () => {
       handle = await subscribeNotifications((payload) => {
-        // Phase B-1: 수신 확인용 로그. B-2에서 Haiku 파싱 붙인다.
-        console.log("[hojo] notification", payload);
+        handleNotification(payload).then(() => bump()).catch(() => {});
       });
     })();
     return () => { handle?.remove(); };
-  }, []);
+  }, [bump]);
 
   if (!onboarded) {
     return <Onboarding onDone={() => setOnboarded(true)} />;
@@ -54,7 +56,12 @@ export default function App() {
   return (
     <div className="app-frame">
       {screen.name === "tabs" && screen.tab === "home" && (
-        <Home refresh={refresh} onEditTx={openAdd} onOpenAssets={() => setScreen({ name: "assets" })} />
+        <Home
+          refresh={refresh}
+          onEditTx={openAdd}
+          onOpenAssets={() => setScreen({ name: "assets" })}
+          onOpenInbox={() => setScreen({ name: "inbox" })}
+        />
       )}
       {screen.name === "tabs" && screen.tab === "history" && (
         <History refresh={refresh} onEditTx={openAdd} />
@@ -86,6 +93,12 @@ export default function App() {
         <Assets
           refresh={refresh}
           onBack={() => setScreen({ name: "tabs", tab: "home" })}
+        />
+      )}
+      {screen.name === "inbox" && (
+        <NotifInbox
+          onDone={afterSave}
+          onBack={() => { bump(); setScreen({ name: "tabs", tab: "home" }); }}
         />
       )}
 
