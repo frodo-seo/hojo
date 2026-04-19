@@ -168,7 +168,7 @@ async function datalabOcr(base64: string, mediaType: string, datalabKey: string)
   return raw;
 }
 
-async function haikuParse(cleaned: string, anthropicKey: string): Promise<ParsedReceipt & { is_receipt: boolean }> {
+async function sonnetParse(cleaned: string, anthropicKey: string): Promise<ParsedReceipt & { is_receipt: boolean }> {
   const res = await httpJson<{
     content?: Array<{ type: string; input?: unknown }>;
   }>(
@@ -181,7 +181,7 @@ async function haikuParse(cleaned: string, anthropicKey: string): Promise<Parsed
         "anthropic-dangerous-direct-browser-access": "true",
       },
       body: {
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 1024,
         tools: [TOOL],
         tool_choice: { type: "tool", name: "parse_receipt" },
@@ -214,7 +214,7 @@ export async function scanReceipt(
 
   const rawOcr = await datalabOcr(base64, mediaType, datalab);
   const cleaned = cleanOcr(rawOcr);
-  const parsed = await haikuParse(cleaned, anthropic);
+  const parsed = await sonnetParse(cleaned, anthropic);
 
   if (parsed.is_receipt === false) {
     throw new Error(msg(
