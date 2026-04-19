@@ -226,7 +226,6 @@ export default function Coach({ refresh, onGoSettings }: Props) {
               ))}
             </div>
           )}
-          <div className="coach-stat-badge">{t("coach.summary")}</div>
         </div>
       )}
 
