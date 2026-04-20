@@ -123,7 +123,9 @@
     "notGranted": "Not allowed",
     "openSettings": "Open system settings",
     "allow": "Grant notification access",
-    "hint": "The status updates automatically after you return from settings."
+    "hint": "The status updates automatically after you return from settings.",
+    "warnTitle": "Notification auto-logging is off",
+    "warnDesc": "Tap to grant access so payments are captured automatically."
   },
   "export": {
     "title": "Export",

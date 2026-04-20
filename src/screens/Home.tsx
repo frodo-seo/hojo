@@ -4,6 +4,8 @@ import type { Transaction, Budget, Asset } from "../types";
 import { getTransactionsByMonth, getBudget, applyFixedIncomes, applyFixedExpenses, getAssets, getPendingNotifs } from "../lib/db";
 import { valuePortfolio, valuationsInBase, type BaseValued } from "../lib/prices";
 import { useBaseCurrency } from "../lib/settings";
+import { isNative } from "../lib/platform";
+import { isListenerEnabled, openListenerSettings } from "../lib/notifications";
 import { formatMoney, formatCurrency, formatPercent, currentMonth } from "../lib/format";
 import { getCategoryById, categoryName } from "../lib/categories";
 import BudgetBar from "../components/BudgetBar";
@@ -25,10 +27,20 @@ export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: P
   const [assets, setAssets] = useState<Asset[]>([]);
   const [based, setBased] = useState<BaseValued[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [listenerOn, setListenerOn] = useState(true);
   const baseCcy = useBaseCurrency();
 
   useEffect(() => {
     getPendingNotifs().then((list) => setPendingCount(list.length));
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!isNative()) { setListenerOn(true); return; }
+    const check = () => { isListenerEnabled().then(setListenerOn); };
+    check();
+    const onFocus = () => check();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
 
   useEffect(() => {
@@ -113,6 +125,19 @@ export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: P
       </div>
 
       {budget && <BudgetBar budget={budget.amount} spent={expense} />}
+
+      {isNative() && !listenerOn && (
+        <button className="listener-warn-card" onClick={openListenerSettings}>
+          <span className="listener-warn-icon">!</span>
+          <span className="listener-warn-text">
+            <strong>{t("listener.warnTitle")}</strong>
+            <span>{t("listener.warnDesc")}</span>
+          </span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="listener-warn-arrow">
+            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
 
       {pendingCount > 0 && (
         <button className="notif-inbox-card" onClick={onOpenInbox}>
