@@ -62,15 +62,21 @@ Keys are stored on-device only. They are never sent to a Hojo server (there is n
 ### Current
 
 - **Single screenshot entry point** — receipts, payment notifications, pay stubs, bills, brokerage / exchange screens are all auto-recognized
-- **Automatic payment notification parsing** — card / pay / bank notifications are intercepted and Haiku extracts amount, merchant, and category. Confirm from the detection card on Home
+- **Automatic payment notification parsing** — Toss, KakaoPay, Naver Pay, Samsung Pay, and 17+ card / bank apps are intercepted; Haiku extracts amount, merchant, and category. Confirm from the detection card on Home
+- **Multi-holding asset OCR** — one brokerage screenshot with several tickers is recognised in a single pass
 - Automatic five-way classification: expense, income, fixed expense, fixed income, asset
-- Asset portfolio: stocks / ETFs, crypto, commodities (gold / silver / platinum) with live quotes
+- Asset portfolio: stocks / ETFs, crypto, commodities (gold / silver / platinum) with live quotes, average cost, market value, and P/L
 - Net-worth aggregation in a base currency plus a pie chart
 - Monthly budget and usage tracking
 - Monthly / yearly AI report (Claude)
 - Multilingual (한국어 / English) — AI report language follows the UI
 - 9 PM logging reminder
 - CSV export
+- Duplicate notifications from the same payment are auto-deduplicated (pkg + amount + merchant, 10-second window)
+
+### Known limitations
+
+- Some card apps (e.g. Hyundai Card) render their notifications as `RemoteViews` custom layouts, which the notification listener cannot read. These apps are not supported for automatic capture — you can still log the expense by scanning a receipt screenshot.
 
 ### Planned
 
