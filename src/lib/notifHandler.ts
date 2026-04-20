@@ -2,7 +2,7 @@ import { getApiKeys } from "./apiKeys";
 import { parseNotification } from "./notifParse";
 import { addPendingNotif, hasNotifKey, hasRecentNotifByContent, type PendingNotif } from "./db";
 
-const DUP_WINDOW_MS = 10 * 60 * 1000; // 10분 내 같은 pkg/금액/가맹점은 중복으로 간주
+const DUP_WINDOW_MS = 10 * 1000; // 10초 내 같은 pkg/금액/가맹점은 중복으로 간주
 
 interface NotificationPayload {
   pkg: string;
