@@ -40,9 +40,14 @@ export default function NotifInbox({ onBack, onDone }: Props) {
       date: n.date,
       createdAt: new Date().toISOString(),
     };
-    await addTransaction(tx);
-    await dismissPendingNotif(n.id);
-    setItems((xs) => xs.filter((x) => x.id !== n.id));
+    try {
+      await addTransaction(tx);
+      await dismissPendingNotif(n.id);
+      setItems((xs) => xs.filter((x) => x.id !== n.id));
+    } catch (err) {
+      console.error("[hojo] notif save failed", err);
+      alert(`저장 실패: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const dismiss = async (id: string) => {
@@ -104,7 +109,7 @@ export default function NotifInbox({ onBack, onDone }: Props) {
 
           {hasReady && (
             <div className="scan-actions">
-              <button className="scan-save" disabled={busy} onClick={saveAll}>
+              <button className="save-btn" disabled={busy} onClick={saveAll}>
                 {busy ? t("notifInbox.saving") : t("notifInbox.saveAll")}
               </button>
             </div>

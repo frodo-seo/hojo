@@ -7,6 +7,7 @@ import { useBaseCurrency } from "../lib/settings";
 import { isNative } from "../lib/platform";
 import { isListenerEnabled, openListenerSettings } from "../lib/notifications";
 import { formatMoney, formatCurrency, formatPercent, currentMonth } from "../lib/format";
+import { getLastBriefing, shouldGenerateBriefing, generateDailyBriefing, type DailyBriefing } from "../lib/dailyBriefing";
 import { getCategoryById, categoryName } from "../lib/categories";
 import BudgetBar from "../components/BudgetBar";
 import TransactionItem from "../components/TransactionItem";
@@ -28,7 +29,20 @@ export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: P
   const [based, setBased] = useState<BaseValued[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [listenerOn, setListenerOn] = useState(true);
+  const [briefing, setBriefing] = useState<DailyBriefing | null>(() => getLastBriefing());
+  const [briefingLoading, setBriefingLoading] = useState(false);
   const baseCcy = useBaseCurrency();
+
+  useEffect(() => {
+    if (!shouldGenerateBriefing()) return;
+    let cancelled = false;
+    setBriefingLoading(true);
+    generateDailyBriefing()
+      .then((b) => { if (!cancelled && b) setBriefing(b); })
+      .catch((err) => console.warn("[hojo] briefing failed", err))
+      .finally(() => { if (!cancelled) setBriefingLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     getPendingNotifs().then((list) => setPendingCount(list.length));
@@ -125,6 +139,19 @@ export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: P
       </div>
 
       {budget && <BudgetBar budget={budget.amount} spent={expense} />}
+
+      {(briefing || briefingLoading) && (
+        <section className="briefing-card">
+          <div className="briefing-head">
+            <span className="briefing-label">{t("briefing.title")}</span>
+          </div>
+          {briefingLoading && !briefing ? (
+            <p className="briefing-text briefing-loading">{t("briefing.loading")}</p>
+          ) : briefing ? (
+            <p className="briefing-text">{briefing.text}</p>
+          ) : null}
+        </section>
+      )}
 
       {isNative() && !listenerOn && (
         <button className="listener-warn-card" onClick={openListenerSettings}>

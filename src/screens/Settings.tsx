@@ -147,7 +147,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
 
   async function handleReminderToggle() {
     if (reminderOn) {
-      disableReminder();
+      await disableReminder();
       setReminderOn(false);
       setReminderMsg(t("reminder.disabledMsg"));
     } else {

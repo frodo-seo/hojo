@@ -164,7 +164,7 @@ async function fetchCryptoQuote(ticker: string, vs: Currency, externalId?: strin
   return { price, currency: vs, asOf: Date.now() };
 }
 
-async function fetchFxRate(base: Currency, quote: Currency): Promise<number> {
+export async function fetchFxRate(base: Currency, quote: Currency): Promise<number> {
   if (base === quote) return 1;
   // Primary: Frankfurter (ECB data, no key, all our supported currencies).
   const primary = `https://api.frankfurter.app/latest?from=${base}&to=${quote}`;

@@ -8,6 +8,7 @@ function msg(ko: string, en: string): string {
 export interface ParsedNotif {
   is_payment: boolean;
   amount: number;
+  currency?: string;
   store?: string;
   category:
     | "food" | "cafe" | "transport" | "housing" | "living"
@@ -27,7 +28,12 @@ const TOOL = {
         description:
           "실제 결제/이체 승인 알림이면 true. 프로모션·광고·한도 안내·로그인 경고 등은 false.",
       },
-      amount: { type: "number", description: "결제 금액 (원)" },
+      amount: { type: "number", description: "결제 금액 (통화 단위의 숫자만)" },
+      currency: {
+        type: "string",
+        description:
+          "ISO 4217 통화 코드. 원·₩·KRW=KRW, $·USD·달러=USD, €=EUR, ¥=JPY, £=GBP 등. 표기 없으면 KRW.",
+      },
       store: { type: "string", description: "가맹점명" },
       category: {
         type: ["string", "null"],
@@ -70,7 +76,7 @@ export async function parseNotification(
         messages: [
           {
             role: "user",
-            content: `다음은 모바일 결제 알림입니다. 실제 결제·이체 승인인지 판단하고, 맞으면 금액·가맹점·카테고리 추출. 프로모·광고·한도 안내·로그인 알림은 is_payment=false. 카테고리: food=식비 cafe=카페 transport=교통(주유·택시·대중교통) housing=주거(통신·관리비·월세) living=생활(편의점·마트) shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타. 불확실하면 null.\n\n앱: ${pkg}\n제목: ${title}\n내용: ${body}`,
+            content: `다음은 모바일 결제 알림입니다. 실제 결제·이체 승인인지 판단하고, 맞으면 금액·통화·가맹점·카테고리 추출. 통화는 알림에 나오는 단위를 그대로 인식하고 ISO 코드로 반환 (원/₩→KRW, $/달러/USD→USD, €→EUR, ¥→JPY 등). 금액은 통화 기호를 제외한 숫자만. 프로모·광고·한도 안내·로그인 알림은 is_payment=false. 카테고리: food=식비 cafe=카페 transport=교통(주유·택시·대중교통) housing=주거(통신·관리비·월세) living=생활(편의점·마트) shopping=쇼핑 health=의료 culture=문화 education=교육 event=경조사 etc-expense=기타. 불확실하면 null.\n\n앱: ${pkg}\n제목: ${title}\n내용: ${body}`,
           },
         ],
       },

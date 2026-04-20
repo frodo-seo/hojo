@@ -2812,3 +2812,37 @@ input[type="number"] {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.briefing-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 0 0 16px;
+  box-shadow: var(--shadow-sm);
+}
+.briefing-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.briefing-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.briefing-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.briefing-loading {
+  color: var(--text-muted);
+  font-style: italic;
+}

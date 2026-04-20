@@ -127,6 +127,10 @@
     "warnTitle": "Notification auto-logging is off",
     "warnDesc": "Tap to grant access so payments are captured automatically."
   },
+  "briefing": {
+    "title": "Today's briefing",
+    "loading": "Summarizing yesterday's spending and overnight asset changes..."
+  },
   "export": {
     "title": "Export",
     "desc": "Save all records as a CSV file.",

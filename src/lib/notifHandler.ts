@@ -1,6 +1,11 @@
 import { getApiKeys } from "./apiKeys";
 import { parseNotification } from "./notifParse";
 import { addPendingNotif, hasNotifKey, hasRecentNotifByContent, type PendingNotif } from "./db";
+import { fetchFxRate } from "./prices";
+import { getBaseCurrency } from "./settings";
+import type { Currency } from "../types";
+
+const SUPPORTED_CURRENCIES: Currency[] = ["USD", "KRW", "EUR", "JPY", "GBP"];
 
 const DUP_WINDOW_MS = 10 * 1000; // 10초 내 같은 pkg/금액/가맹점은 중복으로 간주
 
@@ -59,7 +64,20 @@ export async function handleNotification(payload: NotificationPayload): Promise<
 
   if (!parsed.is_payment || !parsed.amount || parsed.amount <= 0) return;
 
-  if (await hasRecentNotifByContent(payload.pkg, parsed.amount, parsed.store, DUP_WINDOW_MS)) {
+  let amount = parsed.amount;
+  const baseCcy = getBaseCurrency();
+  const rawCcy = (parsed.currency || "KRW").toUpperCase() as Currency;
+  const parsedCcy: Currency = SUPPORTED_CURRENCIES.includes(rawCcy) ? rawCcy : "KRW";
+  if (parsedCcy !== baseCcy) {
+    try {
+      const rate = await fetchFxRate(parsedCcy, baseCcy);
+      amount = Math.round(amount * rate);
+    } catch (err) {
+      console.warn("[hojo] fx convert failed, keeping raw amount", err);
+    }
+  }
+
+  if (await hasRecentNotifByContent(payload.pkg, amount, parsed.store, DUP_WINDOW_MS)) {
     return;
   }
 
@@ -71,7 +89,7 @@ export async function handleNotification(payload: NotificationPayload): Promise<
     postedAt: payload.postedAt,
     parsedAt: new Date().toISOString(),
     status: "pending",
-    amount: parsed.amount,
+    amount,
     store: parsed.store,
     categoryId: parsed.category ?? undefined,
     date: parsed.date || toDate(payload.postedAt),
