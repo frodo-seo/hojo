@@ -15,10 +15,23 @@ class HojoNotificationListener : NotificationListenerService() {
         if (pkg !in WATCHED_PACKAGES) return
 
         val extras = sbn.notification?.extras ?: return
-        val title = extras.getCharSequence("android.title")?.toString() ?: ""
+        val title = extras.getCharSequence("android.title")?.toString()
+            ?: extras.getCharSequence("android.title.big")?.toString()
+            ?: ""
         val text = extras.getCharSequence("android.text")?.toString() ?: ""
         val bigText = extras.getCharSequence("android.bigText")?.toString() ?: ""
-        val body = if (bigText.isNotBlank()) bigText else text
+        val summary = extras.getCharSequence("android.summaryText")?.toString() ?: ""
+        val subText = extras.getCharSequence("android.subText")?.toString() ?: ""
+        val infoText = extras.getCharSequence("android.infoText")?.toString() ?: ""
+        val textLines = extras.getCharSequenceArray("android.textLines")
+            ?.joinToString("\n") { it?.toString() ?: "" }
+            ?: ""
+        val ticker = sbn.notification?.tickerText?.toString() ?: ""
+
+        val body = listOf(bigText, text, textLines, summary, subText, infoText, ticker)
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString("\n")
 
         if (title.isBlank() && body.isBlank()) return
 

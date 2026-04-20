@@ -1,1 +1,0 @@
-Serverless finance tracker. Screenshots and notifications auto-logged. BYOK for AI.

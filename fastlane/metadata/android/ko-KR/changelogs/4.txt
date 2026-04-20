@@ -1,1 +1,0 @@
-- 빌드 재현성 개선: package-lock 동기화, F-Droid 빌더 Node 22로 고정

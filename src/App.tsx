@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { App as CapApp } from "@capacitor/app";
 import { subscribeNotifications } from "./lib/notifications";
+import { isNative } from "./lib/platform";
 import { handleNotification } from "./lib/notifHandler";
 import type { Transaction } from "./types";
 import Home from "./screens/Home";
@@ -39,6 +41,22 @@ export default function App() {
     })();
     return () => { handle?.remove(); };
   }, [bump]);
+
+  useEffect(() => {
+    if (!isNative()) return;
+    let handle: { remove: () => void } | null = null;
+    (async () => {
+      handle = await CapApp.addListener("backButton", () => {
+        setScreen((s) => {
+          if (s.name !== "tabs") return { name: "tabs", tab: "home" };
+          if (s.tab !== "home") return { name: "tabs", tab: "home" };
+          CapApp.exitApp();
+          return s;
+        });
+      });
+    })();
+    return () => { handle?.remove(); };
+  }, []);
 
   if (!onboarded) {
     return <Onboarding onDone={() => setOnboarded(true)} />;

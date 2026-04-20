@@ -1,7 +1,0 @@
-Initial public release.
-
-• BYOK architecture (Anthropic + Datalab)
-• Local-only storage (IndexedDB)
-• Receipt OCR with automatic parsing
-• Monthly and yearly AI reports
-• Budgets, recurring transactions, CSV export
