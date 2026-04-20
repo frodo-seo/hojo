@@ -1,6 +1,8 @@
 import { getApiKeys } from "./apiKeys";
 import { parseNotification } from "./notifParse";
-import { addPendingNotif, hasNotifKey, type PendingNotif } from "./db";
+import { addPendingNotif, hasNotifKey, hasRecentNotifByContent, type PendingNotif } from "./db";
+
+const DUP_WINDOW_MS = 10 * 60 * 1000; // 10분 내 같은 pkg/금액/가맹점은 중복으로 간주
 
 interface NotificationPayload {
   pkg: string;
@@ -56,6 +58,10 @@ export async function handleNotification(payload: NotificationPayload): Promise<
   }
 
   if (!parsed.is_payment || !parsed.amount || parsed.amount <= 0) return;
+
+  if (await hasRecentNotifByContent(payload.pkg, parsed.amount, parsed.store, DUP_WINDOW_MS)) {
+    return;
+  }
 
   const notif: PendingNotif = {
     id: payload.key,

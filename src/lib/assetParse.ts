@@ -19,52 +19,66 @@ export interface ParsedAssetTrade {
   tradedAt?: string;            // YYYY-MM-DD (매매일), 없으면 생략
 }
 
+export interface ParsedAssetTrades {
+  items: ParsedAssetTrade[];
+}
+
 const TOOL = {
-  name: "parse_asset_trade",
+  name: "parse_asset_trades",
   description:
-    "증권·암호화폐·원자재 스크린샷에서 거래 또는 보유 정보를 구조화. 보유 현황만 있고 매매가 아니면 action=holding.",
+    "증권·암호화폐·원자재 스크린샷에서 거래 또는 보유 정보를 구조화. 한 화면에 여러 종목이 있으면 모두 추출. 보유 현황만 있고 매매가 아니면 action=holding.",
   input_schema: {
     type: "object",
     properties: {
-      action: {
-        type: "string",
-        enum: ["buy", "sell", "holding"],
-        description: "buy=매수 확정 내역, sell=매도 확정 내역, holding=현재 보유 현황 스냅샷",
+      items: {
+        type: "array",
+        description: "스크린샷에 나타난 각 종목(자산)당 1개 항목. 같은 화면에 여러 종목이 있으면 전부 추출.",
+        items: {
+          type: "object",
+          properties: {
+            action: {
+              type: "string",
+              enum: ["buy", "sell", "holding"],
+              description: "buy=매수 확정 내역, sell=매도 확정 내역, holding=현재 보유 현황 스냅샷",
+            },
+            kind: {
+              type: "string",
+              enum: ["stock", "crypto", "commodity"],
+              description: "stock=주식/ETF crypto=암호화폐 commodity=금·은·백금 등 원자재",
+            },
+            ticker: {
+              type: "string",
+              description:
+                "거래소 표준 티커 (AAPL, TSLA, BTC, ETH, XAU). 한글 종목명은 영문/숫자 티커로 변환 시도.",
+            },
+            name: { type: "string", description: "표시용 이름 (OCR에 있으면)" },
+            quantity: { type: "number", description: "수량. 부분 단위(0.001 BTC 등) 허용." },
+            avgCost: {
+              type: ["number", "null"],
+              description:
+                "1 단위당 평균 매입가. 스크린샷에 명시되지 않으면 null. 총액과 수량을 모두 주면 총액/수량으로 계산.",
+            },
+            currency: {
+              type: "string",
+              enum: ["USD", "KRW", "EUR", "JPY", "GBP"],
+              description: "기본 통화. 주식은 상장 거래소, 암호화폐는 화면 표시 통화 기준.",
+            },
+            tradedAt: { type: "string", description: "YYYY-MM-DD. 매매일 확인되면." },
+          },
+          required: ["action", "kind", "ticker", "quantity", "currency"],
+        },
       },
-      kind: {
-        type: "string",
-        enum: ["stock", "crypto", "commodity"],
-        description: "stock=주식/ETF crypto=암호화폐 commodity=금·은·백금 등 원자재",
-      },
-      ticker: {
-        type: "string",
-        description:
-          "거래소 표준 티커 (AAPL, TSLA, BTC, ETH, XAU). 한글 종목명은 영문/숫자 티커로 변환 시도.",
-      },
-      name: { type: "string", description: "표시용 이름 (OCR에 있으면)" },
-      quantity: { type: "number", description: "수량. 부분 단위(0.001 BTC 등) 허용." },
-      avgCost: {
-        type: ["number", "null"],
-        description:
-          "1 단위당 평균 매입가. 스크린샷에 명시되지 않으면 null. 총액과 수량을 모두 주면 총액/수량으로 계산.",
-      },
-      currency: {
-        type: "string",
-        enum: ["USD", "KRW", "EUR", "JPY", "GBP"],
-        description: "기본 통화. 주식은 상장 거래소, 암호화폐는 화면 표시 통화 기준.",
-      },
-      tradedAt: { type: "string", description: "YYYY-MM-DD. 매매일 확인되면." },
     },
-    required: ["action", "kind", "ticker", "quantity", "currency"],
+    required: ["items"],
   },
 };
 
-/** 자산/거래 스크린샷 파싱. Sonnet 사용. */
+/** 자산/거래 스크린샷 파싱. Sonnet 사용. 여러 종목을 한 번에 추출. */
 export async function parseAssetTrade(
   cleaned: string,
   anthropicKey: string,
   userHint?: string,
-): Promise<ParsedAssetTrade> {
+): Promise<ParsedAssetTrades> {
   const hintBlock = userHint?.trim()
     ? `\n\n사용자 지시 (보조 정보, OCR에 없는 값 보완·불명확한 값 확정용):\n${userHint.trim()}\n`
     : "";
@@ -81,13 +95,13 @@ export async function parseAssetTrade(
       },
       body: {
         model: "claude-sonnet-4-6",
-        max_tokens: 1024,
+        max_tokens: 2048,
         tools: [TOOL],
-        tool_choice: { type: "tool", name: "parse_asset_trade" },
+        tool_choice: { type: "tool", name: "parse_asset_trades" },
         messages: [
           {
             role: "user",
-            content: `다음 OCR 텍스트는 증권사·거래소·원자재 보유 화면입니다. 티커·수량·평단가·통화를 추출하세요. 평단가가 화면에 없으면 null. 한글 종목명(예: 삼성전자)은 티커(005930)로 변환. 원자재 금=XAU, 은=XAG, 백금=XPT.${hintBlock}\n\nOCR 텍스트:\n${cleaned}`,
+            content: `다음 OCR 텍스트는 증권사·거래소·원자재 보유 화면입니다. 화면에 나타난 모든 종목을 items 배열로 빠짐없이 추출하세요. 티커·수량·평단가·통화를 각각 분리. 평단가가 화면에 없으면 null. 한글 종목명(예: 삼성전자)은 티커(005930)로 변환. 원자재 금=XAU, 은=XAG, 백금=XPT.${hintBlock}\n\nOCR 텍스트:\n${cleaned}`,
           },
         ],
       },
@@ -100,5 +114,5 @@ export async function parseAssetTrade(
   if (!toolUse?.input) {
     throw new Error(msg("파싱 결과를 받지 못했습니다", "No parse result returned"));
   }
-  return toolUse.input as ParsedAssetTrade;
+  return toolUse.input as ParsedAssetTrades;
 }

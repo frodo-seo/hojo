@@ -270,6 +270,25 @@ export async function hasNotifKey(id: string): Promise<boolean> {
   return !!found;
 }
 
+/** Naver/카드사가 같은 결제를 다른 sbn.key로 재발송할 때 대비. pkg+금액+가맹점이 윈도 내에 이미 있으면 true. */
+export async function hasRecentNotifByContent(
+  pkg: string,
+  amount: number,
+  store: string | undefined,
+  windowMs: number,
+): Promise<boolean> {
+  const s = await tx("pending_notifs", "readonly");
+  const all = (await req(s.getAll())) as PendingNotif[];
+  const now = Date.now();
+  const storeKey = (store || "").trim();
+  return all.some((n) =>
+    n.pkg === pkg &&
+    n.amount === amount &&
+    (n.store || "").trim() === storeKey &&
+    now - n.postedAt <= windowMs,
+  );
+}
+
 export async function getPendingNotifs(): Promise<PendingNotif[]> {
   const store = await tx("pending_notifs", "readonly");
   const all = await req(store.getAll());

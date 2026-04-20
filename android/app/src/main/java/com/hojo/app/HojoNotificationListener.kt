@@ -67,6 +67,8 @@ class HojoNotificationListener : NotificationListenerService() {
             "com.kakaopay.app",              // 카카오페이
             "com.naver.nownpay",             // 네이버페이
             "com.nhn.android.search",        // 네이버
+            "com.samsung.android.spay",      // 삼성페이
+            "com.samsung.android.spaywallet",// 삼성월렛 (삼성페이 리브랜딩)
             // 메신저 (송금 알림)
             "com.kakao.talk"
         )

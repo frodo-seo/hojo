@@ -3,9 +3,19 @@ import { isNative } from "./platform";
 
 /**
  * Capacitor 네이티브에서는 CORS 우회(네이티브 HTTP),
- * 웹에서는 fetch로 폴백한다.
+ * 웹에서는 fetch + Vite dev proxy로 폴백한다.
  * 웹은 로컬 개발용 — 프로덕션은 APK가 네이티브 경로 사용.
  */
+
+function rewriteForWeb(url: string): string {
+  if (isNative()) return url;
+  return url
+    .replace(/^https:\/\/api\.anthropic\.com/, "/__proxy/anthropic")
+    .replace(/^https:\/\/www\.datalab\.to/, "/__proxy/datalab")
+    .replace(/^https:\/\/api\.frankfurter\.app/, "/__proxy/frankfurter")
+    .replace(/^https:\/\/open\.er-api\.com/, "/__proxy/erapi")
+    .replace(/^https:\/\/api\.coingecko\.com/, "/__proxy/coingecko");
+}
 
 type HttpResponse<T = unknown> = {
   status: number;
@@ -28,7 +38,7 @@ export async function httpText(
     const text = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
     return { status: res.status, text, ok: res.status >= 200 && res.status < 300 };
   }
-  const res = await fetch(url, { headers });
+  const res = await fetch(rewriteForWeb(url), { headers });
   const text = await res.text();
   return { status: res.status, text, ok: res.ok };
 }
@@ -59,7 +69,7 @@ export async function httpJson<T = unknown>(
     };
   }
 
-  const res = await fetch(url, {
+  const res = await fetch(rewriteForWeb(url), {
     method,
     headers: { "Content-Type": "application/json", ...headers },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
@@ -106,7 +116,7 @@ async function multipartViaFetch<T>(
       form.append(k, blob, v.filename);
     }
   }
-  const res = await fetch(url, {
+  const res = await fetch(rewriteForWeb(url), {
     method: "POST",
     headers, // Content-Type은 브라우저가 boundary 포함해서 자동 설정
     body: form,

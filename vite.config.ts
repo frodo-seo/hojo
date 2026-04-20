@@ -21,6 +21,31 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/__proxy\/yahoo2/, ''),
       },
+      '/__proxy/datalab': {
+        target: 'https://www.datalab.to',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/__proxy\/datalab/, ''),
+      },
+      '/__proxy/anthropic': {
+        target: 'https://api.anthropic.com',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/__proxy\/anthropic/, ''),
+      },
+      '/__proxy/frankfurter': {
+        target: 'https://api.frankfurter.app',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/__proxy\/frankfurter/, ''),
+      },
+      '/__proxy/erapi': {
+        target: 'https://open.er-api.com',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/__proxy\/erapi/, ''),
+      },
+      '/__proxy/coingecko': {
+        target: 'https://api.coingecko.com',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/__proxy\/coingecko/, ''),
+      },
     },
   },
 })

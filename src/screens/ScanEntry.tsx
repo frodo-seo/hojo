@@ -14,7 +14,7 @@ import { isNative } from "../lib/platform";
 import { getApiKeys, useApiKeysStatus } from "../lib/apiKeys";
 import { compressImage, parseExpenseFromText, parseFixedExpense, type ParsedReceipt, type ParsedFixedExpense } from "../lib/receipt";
 import { parseIncome, parseFixedIncome, type ParsedIncome, type ParsedFixedIncome } from "../lib/incomeParse";
-import { parseAssetTrade, type ParsedAssetTrade } from "../lib/assetParse";
+import { parseAssetTrade, type ParsedAssetTrade, type ParsedAssetTrades } from "../lib/assetParse";
 import { classifyScan, type ScanKind } from "../lib/classify";
 import { runOcr } from "../lib/ocr";
 import i18n from "../lib/i18n";
@@ -32,7 +32,7 @@ type PreviewState =
   | { kind: "income"; data: ParsedIncome }
   | { kind: "fixed_expense"; data: ParsedFixedExpense }
   | { kind: "fixed_income"; data: ParsedFixedIncome }
-  | { kind: "asset_trade"; data: ParsedAssetTrade };
+  | { kind: "asset_trade"; data: ParsedAssetTrades };
 
 const KIND_KEYS: Exclude<ScanKind, "unknown">[] = [
   "expense",
@@ -355,18 +355,22 @@ async function saveResult(result: PreviewState): Promise<void> {
     }
     case "asset_trade": {
       const { data } = result;
-      if (data.avgCost == null) throw new Error(i18n.t("scan.avgCostRequired"));
-      const asset: Asset = {
-        id: crypto.randomUUID(),
-        kind: data.kind,
-        ticker: data.ticker,
-        name: data.name || data.ticker,
-        quantity: data.quantity,
-        avgCost: data.avgCost,
-        currency: data.currency,
-        createdAt: now,
-      };
-      await addAsset(asset);
+      if (data.items.some((i) => i.avgCost == null)) {
+        throw new Error(i18n.t("scan.avgCostRequired"));
+      }
+      for (const item of data.items) {
+        const asset: Asset = {
+          id: crypto.randomUUID(),
+          kind: item.kind,
+          ticker: item.ticker,
+          name: item.name || item.ticker,
+          quantity: item.quantity,
+          avgCost: item.avgCost as number,
+          currency: item.currency,
+          createdAt: now,
+        };
+        await addAsset(asset);
+      }
       return;
     }
   }
@@ -435,7 +439,7 @@ function canSave(r: PreviewState): boolean {
     case "fixed_expense":
       return r.data.amount > 0 && !!r.data.name;
     case "asset_trade":
-      return r.data.quantity > 0 && r.data.avgCost != null && r.data.avgCost > 0 && !!r.data.ticker;
+      return r.data.items.length > 0 && r.data.items.every((i) => i.quantity > 0 && i.avgCost != null && i.avgCost > 0 && !!i.ticker);
   }
 }
 
@@ -582,48 +586,65 @@ function FixedExpensePreview({ data, onChange }: { data: ParsedFixedExpense; onC
   );
 }
 
-function AssetPreview({ data, onChange }: { data: ParsedAssetTrade; onChange: (d: ParsedAssetTrade) => void }) {
+function AssetPreview({ data, onChange }: { data: ParsedAssetTrades; onChange: (d: ParsedAssetTrades) => void }) {
   const { t } = useTranslation();
+  const update = (idx: number, patch: Partial<ParsedAssetTrade>) => {
+    const items = data.items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
+    onChange({ items });
+  };
+  const remove = (idx: number) => {
+    onChange({ items: data.items.filter((_, i) => i !== idx) });
+  };
   return (
     <div className="scan-fields">
-      <Field label={t("scan.assetKind")}>
-        <select value={data.kind}
-          onChange={(e) => onChange({ ...data, kind: e.target.value as ParsedAssetTrade["kind"] })}>
-          <option value="stock">{t("scan.assetKindStock")}</option>
-          <option value="crypto">{t("scan.assetKindCrypto")}</option>
-          <option value="commodity">{t("scan.assetKindCommodity")}</option>
-        </select>
-      </Field>
-      <Field label={t("scan.ticker")}>
-        <input type="text" value={data.ticker}
-          onChange={(e) => onChange({ ...data, ticker: e.target.value.toUpperCase() })} />
-      </Field>
-      <Field label={t("scan.name")}>
-        <input type="text" value={data.name || ""}
-          onChange={(e) => onChange({ ...data, name: e.target.value })} />
-      </Field>
-      <Field label={t("scan.quantity")}>
-        <input type="number" step="any" value={data.quantity}
-          onChange={(e) => onChange({ ...data, quantity: Number(e.target.value) })} />
-      </Field>
-      <Field label={t("scan.avgCost")}>
-        <input type="number" step="any" value={data.avgCost ?? ""}
-          placeholder={data.avgCost == null ? t("scan.avgCostHint") : ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            onChange({ ...data, avgCost: v === "" ? null : Number(v) });
-          }} />
-      </Field>
-      <Field label={t("scan.currency")}>
-        <select value={data.currency}
-          onChange={(e) => onChange({ ...data, currency: e.target.value as ParsedAssetTrade["currency"] })}>
-          <option value="USD">USD</option>
-          <option value="KRW">KRW</option>
-          <option value="EUR">EUR</option>
-          <option value="JPY">JPY</option>
-          <option value="GBP">GBP</option>
-        </select>
-      </Field>
+      {data.items.map((item, idx) => (
+        <div key={idx} className="scan-asset-card">
+          <div className="scan-asset-card-head">
+            <span className="scan-asset-card-title">
+              {item.name || item.ticker || `#${idx + 1}`}
+            </span>
+            <button className="scan-item-remove" onClick={() => remove(idx)}>×</button>
+          </div>
+          <Field label={t("scan.assetKind")}>
+            <select value={item.kind}
+              onChange={(e) => update(idx, { kind: e.target.value as ParsedAssetTrade["kind"] })}>
+              <option value="stock">{t("scan.assetKindStock")}</option>
+              <option value="crypto">{t("scan.assetKindCrypto")}</option>
+              <option value="commodity">{t("scan.assetKindCommodity")}</option>
+            </select>
+          </Field>
+          <Field label={t("scan.ticker")}>
+            <input type="text" value={item.ticker}
+              onChange={(e) => update(idx, { ticker: e.target.value.toUpperCase() })} />
+          </Field>
+          <Field label={t("scan.name")}>
+            <input type="text" value={item.name || ""}
+              onChange={(e) => update(idx, { name: e.target.value })} />
+          </Field>
+          <Field label={t("scan.quantity")}>
+            <input type="number" step="any" value={item.quantity}
+              onChange={(e) => update(idx, { quantity: Number(e.target.value) })} />
+          </Field>
+          <Field label={t("scan.avgCost")}>
+            <input type="number" step="any" value={item.avgCost ?? ""}
+              placeholder={item.avgCost == null ? t("scan.avgCostHint") : ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                update(idx, { avgCost: v === "" ? null : Number(v) });
+              }} />
+          </Field>
+          <Field label={t("scan.currency")}>
+            <select value={item.currency}
+              onChange={(e) => update(idx, { currency: e.target.value as ParsedAssetTrade["currency"] })}>
+              <option value="USD">USD</option>
+              <option value="KRW">KRW</option>
+              <option value="EUR">EUR</option>
+              <option value="JPY">JPY</option>
+              <option value="GBP">GBP</option>
+            </select>
+          </Field>
+        </div>
+      ))}
     </div>
   );
 }

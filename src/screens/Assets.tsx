@@ -270,6 +270,10 @@ export default function Assets({ refresh, onBack }: Props) {
                     <span>{v.asset.quantity.toLocaleString()}</span>
                   </div>
                   <div className="asset-row-col">
+                    <span className="asset-row-label">{t("assets.avgCostLabel")}</span>
+                    <span>{formatCurrency(v.asset.avgCost, v.asset.currency)}</span>
+                  </div>
+                  <div className="asset-row-col">
                     <span className="asset-row-label">{t("assets.currentPrice")}</span>
                     <span>
                       {v.quote
