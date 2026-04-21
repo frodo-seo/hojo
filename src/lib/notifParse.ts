@@ -83,7 +83,9 @@ export async function parseNotification(
     },
   );
   if (!res.ok) {
-    throw new Error(msg(`알림 파싱 실패 (${res.status})`, `Notification parse failed (${res.status})`));
+    const err = new Error(msg(`알림 파싱 실패 (${res.status})`, `Notification parse failed (${res.status})`)) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
   const toolUse = res.data.content?.find((c) => c.type === "tool_use");
   if (!toolUse?.input) {

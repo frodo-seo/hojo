@@ -4,12 +4,15 @@ import { StatusBar, Style } from '@capacitor/status-bar'
 import './index.css'
 import './lib/i18n'
 import App from './App.tsx'
+import ErrorBoundary from './components/ErrorBoundary'
 import { bootReminder } from './lib/reminder'
 import { isNative } from './lib/platform'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )
 

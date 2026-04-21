@@ -2846,3 +2846,44 @@ input[type="number"] {
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ===== Error Boundary ===== */
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100svh;
+  padding: 24px;
+  gap: 16px;
+  background: var(--bg);
+  color: var(--text);
+  text-align: center;
+}
+.error-boundary h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+.error-boundary-msg {
+  color: var(--text-muted);
+  font-size: 14px;
+  max-width: 320px;
+  word-break: break-word;
+}
+.error-boundary-btn {
+  min-width: 160px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.error-boundary-btn.secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}

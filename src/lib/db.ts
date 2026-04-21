@@ -243,7 +243,7 @@ export async function applyFixedExpenses(month: string): Promise<boolean> {
 
 // --- Pending notifications (auto-detected payments) ---
 
-export type NotifStatus = "pending" | "dismissed";
+export type NotifStatus = "pending" | "approved" | "dismissed" | "failed";
 
 export interface PendingNotif {
   id: string;                 // sbn.key (dedup)
@@ -307,6 +307,14 @@ export async function dismissPendingNotif(id: string): Promise<void> {
   const found = (await req(store.get(id))) as PendingNotif | undefined;
   if (!found) return;
   found.status = "dismissed";
+  await req(store.put(found));
+}
+
+export async function approvePendingNotif(id: string): Promise<void> {
+  const store = await tx("pending_notifs", "readwrite");
+  const found = (await req(store.get(id))) as PendingNotif | undefined;
+  if (!found) return;
+  found.status = "approved";
   await req(store.put(found));
 }
 

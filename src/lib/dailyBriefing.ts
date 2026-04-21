@@ -92,6 +92,7 @@ export async function generateDailyBriefing(): Promise<DailyBriefing | null> {
 
   let portfolioValue = 0;
   let portfolioDelta: number | undefined;
+  let portfolioDeltaFrom: string | undefined;
   if (assets.length > 0) {
     try {
       const valued = await valuePortfolio(assets);
@@ -103,6 +104,7 @@ export async function generateDailyBriefing(): Promise<DailyBriefing | null> {
         const prev = Number(prevRaw);
         if (!Number.isNaN(prev) && prev > 0) {
           portfolioDelta = portfolioValue - prev;
+          portfolioDeltaFrom = prevDate;
         }
       }
       localStorage.setItem(KEY_LAST_PORTFOLIO, String(portfolioValue));
@@ -123,6 +125,7 @@ export async function generateDailyBriefing(): Promise<DailyBriefing | null> {
     txCount: yesterdayTxs.filter((t) => t.type === "expense").length,
     portfolioValue,
     portfolioDelta,
+    portfolioDeltaFrom,
   });
 
   const res = await httpJson<{ content?: Array<{ type: string; text?: string }> }>(
@@ -167,6 +170,7 @@ function buildPrompt(ctx: {
   txCount: number;
   portfolioValue: number;
   portfolioDelta?: number;
+  portfolioDeltaFrom?: string;
 }): string {
   const isKo = ctx.lang !== "en";
   const ccySym = ctx.ccy === "KRW" ? "원" : ctx.ccy;
@@ -175,22 +179,27 @@ function buildPrompt(ctx: {
     ctx.portfolioDelta === undefined
       ? (isKo ? "(직전 스냅샷 없음)" : "(no prior snapshot)")
       : `${ctx.portfolioDelta >= 0 ? "+" : ""}${ctx.portfolioDelta.toLocaleString()} ${ccySym}`;
+  const deltaLabel = ctx.portfolioDeltaFrom
+    ? (isKo
+        ? `직전 기록(${ctx.portfolioDeltaFrom}) 대비 자산 변동`
+        : `Change vs last snapshot (${ctx.portfolioDeltaFrom})`)
+    : (isKo ? "자산 변동" : "Portfolio change");
 
   if (isKo) {
-    return `사용자의 일일 재무 브리핑을 2-3문장으로 작성하세요. 톤: 친근한 평어체, 짧고 담백하게. 이모지 없음. 조선 말투 금지. 자산 변동이 없으면 소비만, 변동이 크면 강조. 조언은 자연스럽게 하나만.
+    return `사용자의 일일 재무 브리핑을 2-3문장으로 작성하세요. 톤: 친근한 평어체, 짧고 담백하게. 이모지 없음. 조선 말투 금지. 자산 변동이 없으면 소비만, 변동이 크면 강조. 조언은 자연스럽게 하나만. 자산 변동 기간이 1일이 아닐 수 있으니 "어제 하루 동안" 같은 표현은 피하고 "직전 기록 대비" 또는 실제 날짜 범위를 언급하세요.
 
 어제(${ctx.yesterday}) 지출: ${ctx.spendingTotal.toLocaleString()} ${ccySym} (${ctx.txCount}건)
 어제 수입: ${ctx.incomeTotal.toLocaleString()} ${ccySym}
 어제 지출 상위 카테고리: ${topLine}
 현재 포트폴리오 평가액: ${ctx.portfolioValue.toLocaleString()} ${ccySym}
-어제 대비 자산 변동: ${deltaLine}`;
+${deltaLabel}: ${deltaLine}`;
   }
 
-  return `Write a 2-3 sentence daily financial briefing for the user. Tone: friendly, concise, plain. No emojis. Natural, single piece of light commentary if appropriate.
+  return `Write a 2-3 sentence daily financial briefing for the user. Tone: friendly, concise, plain. No emojis. Natural, single piece of light commentary if appropriate. The portfolio change period may span more than a day — avoid phrases like "overnight" or "since yesterday" and refer to the actual snapshot date instead.
 
 Yesterday (${ctx.yesterday}) spending: ${ctx.spendingTotal.toLocaleString()} ${ccySym} (${ctx.txCount} tx)
 Yesterday income: ${ctx.incomeTotal.toLocaleString()} ${ccySym}
 Top categories yesterday: ${topLine}
 Current portfolio value: ${ctx.portfolioValue.toLocaleString()} ${ccySym}
-Change vs previous snapshot: ${deltaLine}`;
+${deltaLabel}: ${deltaLine}`;
 }
