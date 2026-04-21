@@ -9,6 +9,18 @@ const SUPPORTED_CURRENCIES: Currency[] = ["USD", "KRW", "EUR", "JPY", "GBP"];
 
 const DUP_WINDOW_MS = 10 * 1000; // 10초 내 같은 pkg/금액/가맹점은 중복으로 간주
 
+// Haiku 429/5xx를 맞으면 일정 시간 파싱을 전면 중단해서 크레딧 소진을 막는다.
+const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
+let rateLimitedUntil = 0;
+
+function isApiCooldown(): boolean {
+  return Date.now() < rateLimitedUntil;
+}
+
+function markApiCooldown(): void {
+  rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+}
+
 interface NotificationPayload {
   pkg: string;
   title: string;
@@ -38,6 +50,20 @@ function toDate(postedAt: number): string {
   return `${y}-${m}-${day}`;
 }
 
+function buildFailedNotif(payload: NotificationPayload, notifId: string): PendingNotif {
+  return {
+    id: notifId,
+    pkg: payload.pkg,
+    title: payload.title,
+    body: payload.body,
+    postedAt: payload.postedAt,
+    parsedAt: new Date().toISOString(),
+    status: "failed",
+    amount: 0,
+    date: toDate(payload.postedAt),
+  };
+}
+
 /**
  * 단일 알림 처리:
  * 1. sbn.key dedup
@@ -48,17 +74,34 @@ function toDate(postedAt: number): string {
 export async function handleNotification(payload: NotificationPayload): Promise<void> {
   if (!payload.key) return;
 
-  if (await hasNotifKey(payload.key)) return;
+  const notifId = `${payload.key}:${payload.postedAt}`;
+  if (await hasNotifKey(notifId)) return;
   if (!isLikelyPayment(payload.title, payload.body)) return;
 
   const keys = await getApiKeys();
   if (!keys.anthropic) return;
 
+  // 최근 429/5xx가 있었으면 파싱을 건너뛰고 failed로 마크해 무한 재호출을 막는다.
+  if (isApiCooldown()) {
+    await addPendingNotif(buildFailedNotif(payload, notifId));
+    return;
+  }
+
   let parsed;
   try {
     parsed = await parseNotification(payload.title, payload.body, payload.pkg, keys.anthropic);
   } catch (err) {
+    const status = (err as { status?: number }).status;
+    if (status === 429 || (typeof status === "number" && status >= 500)) {
+      markApiCooldown();
+    }
     console.warn("[hojo] notif parse failed", err);
+    // 실패한 알림도 id로 기록해둬서 같은 알림이 다시 와도 재호출하지 않는다.
+    try {
+      await addPendingNotif(buildFailedNotif(payload, notifId));
+    } catch (dbErr) {
+      console.warn("[hojo] failed-notif save failed", dbErr);
+    }
     return;
   }
 
@@ -82,7 +125,7 @@ export async function handleNotification(payload: NotificationPayload): Promise<
   }
 
   const notif: PendingNotif = {
-    id: payload.key,
+    id: notifId,
     pkg: payload.pkg,
     title: payload.title,
     body: payload.body,

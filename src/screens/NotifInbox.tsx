@@ -4,6 +4,7 @@ import {
   getPendingNotifs,
   updatePendingNotif,
   dismissPendingNotif,
+  approvePendingNotif,
   addTransaction,
   type PendingNotif,
 } from "../lib/db";
@@ -42,7 +43,7 @@ export default function NotifInbox({ onBack, onDone }: Props) {
     };
     try {
       await addTransaction(tx);
-      await dismissPendingNotif(n.id);
+      await approvePendingNotif(n.id);
       setItems((xs) => xs.filter((x) => x.id !== n.id));
     } catch (err) {
       console.error("[hojo] notif save failed", err);

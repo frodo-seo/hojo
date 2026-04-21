@@ -293,8 +293,9 @@ export default function Assets({ refresh, onBack }: Props) {
                     <div className={`asset-row-col ${gainClass}`}>
                       <span className="asset-row-label">{t("assets.totalGain")}</span>
                       <span>
-                        {gain >= 0 ? "+" : ""}{formatCurrency(gain, v.asset.currency)}
-                        {v.gainPct !== null && ` (${formatPercent(v.gainPct)})`}
+                        {v.gainPct !== null
+                          ? formatPercent(v.gainPct)
+                          : `${gain >= 0 ? "+" : ""}${formatCurrency(gain, v.asset.currency)}`}
                       </span>
                     </div>
                   )}
