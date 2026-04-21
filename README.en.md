@@ -68,7 +68,7 @@ Keys are stored on-device only. They are never sent to a Hojo server (there is n
 - Asset portfolio: stocks / ETFs, crypto, commodities (gold / silver / platinum) with live quotes, average cost, market value, and P/L
 - Net-worth aggregation in a base currency plus a pie chart
 - Monthly budget and usage tracking
-- Monthly / yearly AI report (Claude)
+- Daily / monthly / yearly AI report (Claude) — includes a morning daily briefing
 - Multilingual (한국어 / English) — AI report language follows the UI
 - 9 PM logging reminder
 - CSV export

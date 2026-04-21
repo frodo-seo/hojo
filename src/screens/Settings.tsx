@@ -476,7 +476,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
           </div>
           <div className="info-row">
             <span>{t("appInfo.version")}</span>
-            <span>0.2.0</span>
+            <span>0.3.4</span>
           </div>
           <div className="info-row">
             <span>{t("appInfo.storage")}</span>
