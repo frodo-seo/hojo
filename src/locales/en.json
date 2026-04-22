@@ -70,7 +70,6 @@
     "noRecords": "No records this month"
   },
   "add": {
-    "addTitle": "Add",
     "editTitle": "Edit",
     "typeExpense": "Expense",
     "typeIncome": "Income",
@@ -115,17 +114,6 @@
     "enabledMsg": "You'll be reminded daily at 9 PM",
     "disabledMsg": "Reminder disabled",
     "deniedMsg": "Notification permission denied"
-  },
-  "listener": {
-    "title": "Auto-log from notifications (experimental)",
-    "desc": "Reads payment notifications and logs them as expenses. Only payment-related notifications are captured, and nothing leaves the device.",
-    "granted": "Allowed",
-    "notGranted": "Not allowed",
-    "openSettings": "Open system settings",
-    "allow": "Grant notification access",
-    "hint": "The status updates automatically after you return from settings.",
-    "warnTitle": "Notification auto-logging is off",
-    "warnDesc": "Tap to grant access so payments are captured automatically."
   },
   "briefing": {
     "title": "Today's briefing",
@@ -201,22 +189,6 @@
   "receipt": {
     "scanFailed": "Scan failed",
     "imageFailed": "Couldn't read the image"
-  },
-  "notifInbox": {
-    "title": "Auto-detected",
-    "subtitle": "Extracted from payment notifications. Review and save.",
-    "homeBadge": "{{count}} auto-detected",
-    "empty": "No pending notifications",
-    "saveAll": "Save all",
-    "saving": "Saving...",
-    "saveOne": "Save",
-    "dismiss": "Dismiss",
-    "pickCategory": "Pick category",
-    "storeLabel": "Store",
-    "amountLabel": "Amount",
-    "dateLabel": "Date",
-    "categoryLabel": "Category",
-    "unknownStore": "Unknown store"
   },
   "scan": {
     "title": "Scan",

@@ -328,6 +328,56 @@ export async function valuePortfolio(assets: Asset[]): Promise<AssetValuation[]>
   return Promise.all(assets.map(valueAsset));
 }
 
+/**
+ * Synchronous cache-only valuation. Reads localStorage price/FX caches without
+ * any network. Used for instant first paint; missing entries yield null values.
+ * Returns entries even if the cache is stale — better a slightly old number
+ * than a blank screen.
+ */
+export function valuePortfolioFromCacheSync(assets: Asset[]): AssetValuation[] {
+  return assets.map((asset) => {
+    const key = `${asset.kind}:${asset.ticker.toUpperCase()}`;
+    const cached = cacheGet(key);
+    const cost = asset.quantity * asset.avgCost;
+    let quote: PriceQuote | null = null;
+    let marketValue: number | null = null;
+
+    if (cached) {
+      quote = { price: cached.price, currency: cached.currency, asOf: cached.asOf };
+      let priceInAssetCcy: number | null = null;
+      if (quote.currency === asset.currency) {
+        priceInAssetCcy = quote.price;
+      } else {
+        const fx = cacheGet(`fx:${quote.currency}:${asset.currency}`);
+        if (fx) priceInAssetCcy = quote.price * fx.price;
+      }
+      if (priceInAssetCcy !== null) {
+        marketValue = asset.quantity * priceInAssetCcy;
+      }
+    }
+
+    const gain = marketValue !== null ? marketValue - cost : null;
+    const gainPct = gain !== null && cost > 0 ? gain / cost : null;
+    return { asset, quote, marketValue, cost, gain, gainPct };
+  });
+}
+
+export function valuationsInBaseFromCacheSync(
+  valuations: AssetValuation[],
+  base: Currency,
+): BaseValued[] {
+  return valuations.map((v) => {
+    const convertSync = (amount: number, from: Currency): number | null => {
+      if (from === base) return amount;
+      const fx = cacheGet(`fx:${from}:${base}`);
+      return fx ? amount * fx.price : null;
+    };
+    const valueBase = v.marketValue === null ? null : convertSync(v.marketValue, v.asset.currency);
+    const costBase = convertSync(v.cost, v.asset.currency);
+    return { valuation: v, valueBase, costBase };
+  });
+}
+
 export interface BaseValued {
   valuation: AssetValuation;
   valueBase: number | null; // marketValue in base currency

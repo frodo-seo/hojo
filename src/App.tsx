@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { App as CapApp } from "@capacitor/app";
-import { subscribeNotifications } from "./lib/notifications";
 import { isNative } from "./lib/platform";
-import { handleNotification } from "./lib/notifHandler";
 import type { Transaction } from "./types";
 import Home from "./screens/Home";
 import Add from "./screens/Add";
@@ -11,17 +9,15 @@ import Coach from "./screens/Coach";
 import Settings from "./screens/Settings";
 import ScanEntry from "./screens/ScanEntry";
 import Assets from "./screens/Assets";
-import NotifInbox from "./screens/NotifInbox";
 import Onboarding from "./screens/Onboarding";
 import TabBar, { type Tab } from "./components/TabBar";
 import "./App.css";
 
 type Screen =
   | { name: "tabs"; tab: Tab }
-  | { name: "add"; editTx?: Transaction }
+  | { name: "add"; editTx: Transaction }
   | { name: "scan" }
-  | { name: "assets" }
-  | { name: "inbox" };
+  | { name: "assets" };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: "tabs", tab: "home" });
@@ -33,20 +29,10 @@ export default function App() {
   const bump = useCallback(() => setRefresh((n) => n + 1), []);
 
   useEffect(() => {
-    let handle: Awaited<ReturnType<typeof subscribeNotifications>> | null = null;
-    (async () => {
-      handle = await subscribeNotifications((payload) => {
-        handleNotification(payload).then(() => bump()).catch(() => {});
-      });
-    })();
-    return () => { handle?.remove(); };
-  }, [bump]);
-
-  useEffect(() => {
     if (!isNative()) return;
-    let handle: { remove: () => void } | null = null;
+    let backHandle: { remove: () => void } | null = null;
     (async () => {
-      handle = await CapApp.addListener("backButton", () => {
+      backHandle = await CapApp.addListener("backButton", () => {
         setScreen((s) => {
           if (s.name !== "tabs") return { name: "tabs", tab: "home" };
           if (s.tab !== "home") return { name: "tabs", tab: "home" };
@@ -55,14 +41,14 @@ export default function App() {
         });
       });
     })();
-    return () => { handle?.remove(); };
+    return () => { backHandle?.remove(); };
   }, []);
 
   if (!onboarded) {
     return <Onboarding onDone={() => setOnboarded(true)} />;
   }
 
-  const openAdd = (editTx?: Transaction) => {
+  const openEdit = (editTx: Transaction) => {
     setScreen({ name: "add", editTx });
   };
 
@@ -76,13 +62,12 @@ export default function App() {
       {screen.name === "tabs" && screen.tab === "home" && (
         <Home
           refresh={refresh}
-          onEditTx={openAdd}
+          onEditTx={openEdit}
           onOpenAssets={() => setScreen({ name: "assets" })}
-          onOpenInbox={() => setScreen({ name: "inbox" })}
         />
       )}
       {screen.name === "tabs" && screen.tab === "history" && (
-        <History refresh={refresh} onEditTx={openAdd} />
+        <History refresh={refresh} onEditTx={openEdit} />
       )}
       {screen.name === "tabs" && screen.tab === "coach" && (
         <Coach
@@ -111,12 +96,6 @@ export default function App() {
         <Assets
           refresh={refresh}
           onBack={() => setScreen({ name: "tabs", tab: "home" })}
-        />
-      )}
-      {screen.name === "inbox" && (
-        <NotifInbox
-          onDone={afterSave}
-          onBack={() => { bump(); setScreen({ name: "tabs", tab: "home" }); }}
         />
       )}
 

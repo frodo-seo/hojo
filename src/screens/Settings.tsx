@@ -11,8 +11,6 @@ import { currentMonth, formatMoney, getMonthLabel, formatAmountInput, parseAmoun
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, categoryName } from "../lib/categories";
 import { isReminderEnabled, enableReminder, disableReminder } from "../lib/reminder";
 import { getApiKeys, setAnthropicKey, setDatalabKey, maskKey } from "../lib/apiKeys";
-import { isListenerEnabled, openListenerSettings } from "../lib/notifications";
-import { isNative } from "../lib/platform";
 import { setLang, currentLang, SUPPORTED_LANGS, type Lang } from "../lib/i18n";
 import { getBaseCurrency, setBaseCurrency } from "../lib/settings";
 import type { Currency } from "../types";
@@ -34,8 +32,6 @@ export default function Settings({ refresh, onRefresh }: Props) {
 
   const [reminderOn, setReminderOn] = useState(isReminderEnabled());
   const [reminderMsg, setReminderMsg] = useState("");
-
-  const [listenerOn, setListenerOn] = useState(false);
 
   const [anthKey, setAnthKey] = useState("");
   const [dataKey, setDataKey] = useState("");
@@ -63,14 +59,6 @@ export default function Settings({ refresh, onRefresh }: Props) {
       setAnthSaved(k.anthropic);
       setDataSaved(k.datalab);
     });
-    isListenerEnabled().then(setListenerOn);
-    const onFocus = () => { isListenerEnabled().then(setListenerOn); };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-    };
   }, [month, refresh, lang]);
 
   async function handleSaveAnthKey() {
@@ -313,27 +301,6 @@ export default function Settings({ refresh, onRefresh }: Props) {
         </div>
         {reminderMsg && <p className="reminder-msg">{reminderMsg}</p>}
       </section>
-
-      {isNative() && (
-        <section className="settings-section">
-          <h2 className="section-title">{t("listener.title")}</h2>
-          <p className="section-desc">{t("listener.desc")}</p>
-          <div className="reminder-row">
-            <span className="reminder-label">
-              {listenerOn ? t("listener.granted") : t("listener.notGranted")}
-            </span>
-            <button
-              className="save-btn small"
-              onClick={openListenerSettings}
-            >
-              {listenerOn ? t("listener.openSettings") : t("listener.allow")}
-            </button>
-          </div>
-          <p className="section-desc" style={{ marginTop: 8, fontSize: 12 }}>
-            {t("listener.hint")}
-          </p>
-        </section>
-      )}
 
       <section className="settings-section">
         <h2 className="section-title">{t("language.title")}</h2>

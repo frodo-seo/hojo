@@ -2,19 +2,19 @@
 
 [🇰🇷 한국어](README.md) · 🇬🇧 English
 
+> No manual entry. Just a screenshot.
 > Your data on your device. AI with your own API key.
-> An **open-source personal finance app** that logs expenses, income, and assets from a single screenshot.
 
-**Hojo** is a server-less ledger and portfolio tracker. Instead of typing entries by hand, you upload a screenshot of a receipt, a payment notification, or a brokerage / exchange screen, and **AI reads it and classifies it automatically**. All ledgers live in the on-device database, and AI / OCR run through keys you issue yourself.
+**Hojo** is a server-less, **image-only ledger and portfolio tracker**. Every record — expense, income, asset — starts from a screenshot. Upload a receipt, a payment screen, a pay stub, or a brokerage / exchange view, and OCR + Claude read it, classify it, and parse it. Ledgers live in the on-device IndexedDB; AI / OCR run through keys you issue yourself.
 
 ---
 
 ## Principles
 
-- **Screenshot-first input** — Upload an image and OCR → classify → parse runs end-to-end. Missing fields can be filled in at the review step.
+- **Image-only input** — You don't type amounts, categories, or tickers. Upload a screenshot and OCR → classify → parse runs end-to-end; at review time you just correct what needs fixing.
 - **BYOK (Bring Your Own Key)** — Anthropic and Datalab keys are issued from your own accounts and stored locally. No dependence on a provider's infrastructure.
 - **Local-first** — Transactions, assets, reports, and settings live only in the device's IndexedDB. No cloud sync, no signup.
-- **Monthly / yearly reports** — Claude reads transaction and asset stats and writes a structured summary.
+- **Monthly / yearly reports** — Claude reads accumulated transaction and asset data and writes a structured summary.
 - **Open source (MIT)** — Fully public code. Fork, modify, and redistribute freely.
 
 ---
@@ -25,15 +25,17 @@
 [screenshot + optional hint]
   └─ Chandra OCR (Datalab)         → markdown text
        └─ Classifier Agent (Haiku) → expense / income / fixed_expense / fixed_income / asset_trade
-            └─ domain parser        → structured fields
+            └─ domain parser (Sonnet) → structured fields
                  └─ user review     → IndexedDB
 ```
+
+What one screenshot covers:
 
 - Receipts, card approvals, delivery apps → expense
 - P2P incoming transfers, refunds, dividends → income
 - Telecom, rent, subscriptions → fixed expense
 - Pay stubs, recurring inbound transfers → fixed income
-- Brokerage, exchange, metals quote → asset holdings / trades
+- Brokerage / exchange / metals screens → asset holdings or trades (multi-ticker screenshots are parsed in one pass)
 - Free-form hints like "only record the coffee as an expense" are honored by the parser.
 
 ---
@@ -59,12 +61,9 @@ Keys are stored on-device only. They are never sent to a Hojo server (there is n
 
 ## Features
 
-### Current
-
-- **Single screenshot entry point** — receipts, payment notifications, pay stubs, bills, brokerage / exchange screens are all auto-recognized
-- **Automatic payment notification parsing** — Toss, KakaoPay, Naver Pay, Samsung Pay, and 17+ card / bank apps are intercepted; Haiku extracts amount, merchant, and category. Confirm from the detection card on Home
-- **Multi-holding asset OCR** — one brokerage screenshot with several tickers is recognised in a single pass
-- Automatic five-way classification: expense, income, fixed expense, fixed income, asset
+- **Single screenshot entry point** — receipts, payment screens, pay stubs, bills, brokerage / exchange views all auto-classified
+- **Multi-holding asset OCR** — one brokerage screenshot with several tickers is parsed in a single pass
+- Automatic five-way classification: expense, income, fixed expense, fixed income, asset trade
 - Asset portfolio: stocks / ETFs, crypto, commodities (gold / silver / platinum) with live quotes, average cost, market value, and P/L
 - Net-worth aggregation in a base currency plus a pie chart
 - Monthly budget and usage tracking
@@ -72,18 +71,6 @@ Keys are stored on-device only. They are never sent to a Hojo server (there is n
 - Multilingual (한국어 / English) — AI report language follows the UI
 - 9 PM logging reminder
 - CSV export
-- Duplicate notifications from the same payment are auto-deduplicated (pkg + amount + merchant, 10-second window)
-
-### Known limitations
-
-- Some card apps (e.g. Hyundai Card) render their notifications as `RemoteViews` custom layouts, which the notification listener cannot read. These apps are not supported for automatic capture — you can still log the expense by scanning a receipt screenshot.
-
-### Planned
-
-- **Subscription detection** — group recurring payments into fixed expenses
-- **Spike detection** — alert when spending exceeds the usual pattern
-- **CSV import** — bulk upload of card statements
-- **Gmail receipt integration** — auto-collect email receipts
 
 ---
 
@@ -122,12 +109,12 @@ In Android Studio, use **Build → Generate Signed App Bundle / APK** to produce
        ├─ React 19 + TypeScript
        ├─ IndexedDB               (transactions, assets, reports, settings)
        ├─ Preferences             (API keys)
-       ├─ NotificationListener    (payment notification capture, Kotlin)
        └─ CapacitorHttp
             ├─ Datalab Chandra OCR
-            ├─ Anthropic (Haiku for classification / parsing, Sonnet for asset parsing / reports)
-            ├─ Yahoo Finance (stocks, commodities quotes)
-            └─ CoinGecko (crypto quotes)
+            ├─ Anthropic (Haiku for classification, Sonnet for parsing / reports)
+            ├─ Yahoo Finance · Stooq (stocks, commodities quotes)
+            ├─ CoinGecko (crypto quotes)
+            └─ Frankfurter (FX)
 ```
 
 - **No backend server.** The app calls external APIs directly.

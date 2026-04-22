@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Transaction, Budget, Asset } from "../types";
-import { getTransactionsByMonth, getBudget, applyFixedIncomes, applyFixedExpenses, getAssets, getPendingNotifs } from "../lib/db";
-import { valuePortfolio, valuationsInBase, type BaseValued } from "../lib/prices";
+import { getTransactionsByMonth, getBudget, applyFixedIncomes, applyFixedExpenses, getAssets } from "../lib/db";
+import { valuePortfolio, valuationsInBase, valuePortfolioFromCacheSync, valuationsInBaseFromCacheSync, type BaseValued } from "../lib/prices";
 import { useBaseCurrency } from "../lib/settings";
-import { isNative } from "../lib/platform";
-import { isListenerEnabled, openListenerSettings } from "../lib/notifications";
 import { formatMoney, formatCurrency, formatPercent, currentMonth } from "../lib/format";
 import { getLastBriefing, shouldGenerateBriefing, generateDailyBriefing, type DailyBriefing } from "../lib/dailyBriefing";
 import { getCategoryById, categoryName } from "../lib/categories";
@@ -17,18 +15,15 @@ type Props = {
   refresh: number;
   onEditTx: (tx: Transaction) => void;
   onOpenAssets: () => void;
-  onOpenInbox: () => void;
 };
 
-export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: Props) {
+export default function Home({ refresh, onEditTx, onOpenAssets }: Props) {
   const { t } = useTranslation();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budget, setBudget] = useState<Budget | undefined>();
   const [month, setMonth] = useState(currentMonth());
   const [assets, setAssets] = useState<Asset[]>([]);
   const [based, setBased] = useState<BaseValued[]>([]);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [listenerOn, setListenerOn] = useState(true);
   const [briefing, setBriefing] = useState<DailyBriefing | null>(() => getLastBriefing());
   const [briefingLoading, setBriefingLoading] = useState(false);
   const baseCcy = useBaseCurrency();
@@ -45,19 +40,6 @@ export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: P
   }, []);
 
   useEffect(() => {
-    getPendingNotifs().then((list) => setPendingCount(list.length));
-  }, [refresh]);
-
-  useEffect(() => {
-    if (!isNative()) { setListenerOn(true); return; }
-    const check = () => { isListenerEnabled().then(setListenerOn); };
-    check();
-    const onFocus = () => check();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [refresh]);
-
-  useEffect(() => {
     async function load() {
       const incomeApplied = await applyFixedIncomes(month);
       const expenseApplied = await applyFixedExpenses(month);
@@ -70,16 +52,24 @@ export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: P
   }, [month, refresh]);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const list = await getAssets();
+      if (cancelled) return;
       setAssets(list);
-      if (list.length > 0) {
-        const vs = await valuePortfolio(list);
-        setBased(await valuationsInBase(vs, baseCcy));
-      } else {
+      if (list.length === 0) {
         setBased([]);
+        return;
       }
+      const cachedVs = valuePortfolioFromCacheSync(list);
+      setBased(valuationsInBaseFromCacheSync(cachedVs, baseCcy));
+      const vs = await valuePortfolio(list);
+      if (cancelled) return;
+      const fresh = await valuationsInBase(vs, baseCcy);
+      if (cancelled) return;
+      setBased(fresh);
     })();
+    return () => { cancelled = true; };
   }, [refresh, baseCcy]);
 
   const assetSummary = useMemo(() => {
@@ -151,29 +141,6 @@ export default function Home({ refresh, onEditTx, onOpenAssets, onOpenInbox }: P
             <p className="briefing-text">{briefing.text}</p>
           ) : null}
         </section>
-      )}
-
-      {isNative() && !listenerOn && (
-        <button className="listener-warn-card" onClick={openListenerSettings}>
-          <span className="listener-warn-icon">!</span>
-          <span className="listener-warn-text">
-            <strong>{t("listener.warnTitle")}</strong>
-            <span>{t("listener.warnDesc")}</span>
-          </span>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="listener-warn-arrow">
-            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      )}
-
-      {pendingCount > 0 && (
-        <button className="notif-inbox-card" onClick={onOpenInbox}>
-          <span className="notif-inbox-dot" />
-          <span className="notif-inbox-label">{t("notifInbox.homeBadge", { count: pendingCount })}</span>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="notif-inbox-arrow">
-            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
       )}
 
       <button className="asset-home-card" onClick={onOpenAssets}>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Asset, AssetKind, Currency } from "../types";
 import { addAsset, deleteAsset, getAssets, updateAsset } from "../lib/db";
-import { valuePortfolio, searchTicker, valuationsInBase, type AssetValuation, type BaseValued, type TickerSearchResult } from "../lib/prices";
+import { valuePortfolio, searchTicker, valuationsInBase, valuePortfolioFromCacheSync, valuationsInBaseFromCacheSync, type AssetValuation, type BaseValued, type TickerSearchResult } from "../lib/prices";
 import { formatCurrency, formatPercent } from "../lib/format";
 import { useBaseCurrency } from "../lib/settings";
 import PortfolioPie from "../components/PortfolioPie";
@@ -50,15 +50,30 @@ export default function Assets({ refresh, onBack }: Props) {
   const baseCcy = useBaseCurrency();
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const list = await getAssets();
+      if (cancelled) return;
       setAssets(list);
+      if (list.length === 0) {
+        setValuations([]);
+        setBased([]);
+        setLoading(false);
+        return;
+      }
+      const cachedVs = valuePortfolioFromCacheSync(list);
+      setValuations(cachedVs);
+      setBased(valuationsInBaseFromCacheSync(cachedVs, baseCcy));
       setLoading(true);
       const vs = await valuePortfolio(list);
+      if (cancelled) return;
       setValuations(vs);
-      setBased(await valuationsInBase(vs, baseCcy));
+      const fresh = await valuationsInBase(vs, baseCcy);
+      if (cancelled) return;
+      setBased(fresh);
       setLoading(false);
     })();
+    return () => { cancelled = true; };
   }, [refresh, baseCcy]);
 
   const totals = useMemo(() => {

@@ -1,29 +1,24 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Transaction, TransactionType } from "../types";
-import { addTransaction, updateTransaction, deleteTransaction } from "../lib/db";
-import { EXPENSE_CATEGORIES } from "../lib/categories";
-import { today, formatAmountInput, amountKoreanWord, formatMoney } from "../lib/format";
+import { updateTransaction, deleteTransaction } from "../lib/db";
+import { formatAmountInput, amountKoreanWord, formatMoney } from "../lib/format";
 import CategoryPicker from "../components/CategoryPicker";
 
 type Props = {
-  editTx?: Transaction;
+  editTx: Transaction;
   onDone: () => void;
   onBack: () => void;
 };
 
 export default function Add({ editTx, onDone, onBack }: Props) {
   const { t } = useTranslation();
-  const [type, setType] = useState<TransactionType>(editTx?.type ?? "expense");
-  const [amount, setAmount] = useState(editTx ? String(editTx.amount) : "");
-  const [categoryId, setCategoryId] = useState(
-    editTx?.categoryId ?? EXPENSE_CATEGORIES[0].id,
-  );
-  const [memo, setMemo] = useState(editTx?.memo ?? "");
-  const [date, setDate] = useState(editTx?.date ?? today());
+  const [type, setType] = useState<TransactionType>(editTx.type);
+  const [amount, setAmount] = useState(String(editTx.amount));
+  const [categoryId, setCategoryId] = useState(editTx.categoryId);
+  const [memo, setMemo] = useState(editTx.memo);
+  const [date, setDate] = useState(editTx.date);
   const [saving, setSaving] = useState(false);
-
-  const isEdit = !!editTx;
 
   function pad(extra: string) {
     setAmount((prev) => {
@@ -52,26 +47,19 @@ export default function Add({ editTx, onDone, onBack }: Props) {
     }
     setSaving(true);
 
-    const tx: Transaction = {
-      id: editTx?.id ?? crypto.randomUUID(),
+    await updateTransaction({
+      id: editTx.id,
       type,
       amount: amt,
       categoryId,
       memo: memo.trim(),
       date,
-      createdAt: editTx?.createdAt ?? new Date().toISOString(),
-    };
-
-    if (isEdit) {
-      await updateTransaction(tx);
-    } else {
-      await addTransaction(tx);
-    }
+      createdAt: editTx.createdAt,
+    });
     onDone();
   }
 
   async function handleDelete() {
-    if (!editTx) return;
     if (!confirm(t("common.confirmDelete"))) return;
     await deleteTransaction(editTx.id);
     onDone();
@@ -85,12 +73,10 @@ export default function Add({ editTx, onDone, onBack }: Props) {
             <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
-        <h1>{isEdit ? t("add.editTitle") : t("add.addTitle")}</h1>
-        {isEdit && (
-          <button className="delete-btn" onClick={handleDelete}>
-            {t("common.delete")}
-          </button>
-        )}
+        <h1>{t("add.editTitle")}</h1>
+        <button className="delete-btn" onClick={handleDelete}>
+          {t("common.delete")}
+        </button>
       </header>
 
       <div className="type-toggle">
@@ -122,7 +108,6 @@ export default function Add({ editTx, onDone, onBack }: Props) {
           value={formatAmountInput(amount)}
           onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))}
           inputMode="numeric"
-          autoFocus
         />
         <span className="amount-unit">{t("format.amountUnit")}</span>
       </div>
@@ -179,7 +164,7 @@ export default function Add({ editTx, onDone, onBack }: Props) {
         onClick={handleSave}
         disabled={!amount || parseInt(amount) <= 0 || saving}
       >
-        {saving ? t("common.saving") : isEdit ? t("add.editButton") : t("common.save")}
+        {saving ? t("common.saving") : t("add.editButton")}
       </button>
     </div>
   );

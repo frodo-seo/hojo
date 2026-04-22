@@ -1,7 +1,7 @@
 import type { Transaction, Budget, FixedIncome, FixedExpense, Asset } from "../types";
 
 const DB_NAME = "sobi-ilgi";
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -28,9 +28,9 @@ function open(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("assets")) {
         db.createObjectStore("assets", { keyPath: "id" });
       }
-      if (!db.objectStoreNames.contains("pending_notifs")) {
-        const store = db.createObjectStore("pending_notifs", { keyPath: "id" });
-        store.createIndex("status", "status", { unique: false });
+      // v7: 알림 파싱 기능 제거. 기존 pending_notifs 스토어 정리.
+      if (db.objectStoreNames.contains("pending_notifs")) {
+        db.deleteObjectStore("pending_notifs");
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -239,83 +239,6 @@ export async function applyFixedExpenses(month: string): Promise<boolean> {
   }
 
   return anyApplied;
-}
-
-// --- Pending notifications (auto-detected payments) ---
-
-export type NotifStatus = "pending" | "approved" | "dismissed" | "failed";
-
-export interface PendingNotif {
-  id: string;                 // sbn.key (dedup)
-  pkg: string;
-  title: string;
-  body: string;
-  postedAt: number;
-  parsedAt: string;
-  status: NotifStatus;
-  amount: number;
-  store?: string;
-  categoryId?: string;        // 예: "cafe"
-  date: string;               // YYYY-MM-DD
-}
-
-export async function addPendingNotif(n: PendingNotif): Promise<void> {
-  const store = await tx("pending_notifs", "readwrite");
-  await req(store.put(n));
-}
-
-export async function hasNotifKey(id: string): Promise<boolean> {
-  const store = await tx("pending_notifs", "readonly");
-  const found = await req(store.get(id));
-  return !!found;
-}
-
-/** Naver/카드사가 같은 결제를 다른 sbn.key로 재발송할 때 대비. pkg+금액+가맹점이 윈도 내에 이미 있으면 true. */
-export async function hasRecentNotifByContent(
-  pkg: string,
-  amount: number,
-  store: string | undefined,
-  windowMs: number,
-): Promise<boolean> {
-  const s = await tx("pending_notifs", "readonly");
-  const all = (await req(s.getAll())) as PendingNotif[];
-  const now = Date.now();
-  const storeKey = (store || "").trim();
-  return all.some((n) =>
-    n.pkg === pkg &&
-    n.amount === amount &&
-    (n.store || "").trim() === storeKey &&
-    now - n.postedAt <= windowMs,
-  );
-}
-
-export async function getPendingNotifs(): Promise<PendingNotif[]> {
-  const store = await tx("pending_notifs", "readonly");
-  const all = await req(store.getAll());
-  return (all as PendingNotif[])
-    .filter((n) => n.status === "pending")
-    .sort((a, b) => b.postedAt - a.postedAt);
-}
-
-export async function updatePendingNotif(n: PendingNotif): Promise<void> {
-  const store = await tx("pending_notifs", "readwrite");
-  await req(store.put(n));
-}
-
-export async function dismissPendingNotif(id: string): Promise<void> {
-  const store = await tx("pending_notifs", "readwrite");
-  const found = (await req(store.get(id))) as PendingNotif | undefined;
-  if (!found) return;
-  found.status = "dismissed";
-  await req(store.put(found));
-}
-
-export async function approvePendingNotif(id: string): Promise<void> {
-  const store = await tx("pending_notifs", "readwrite");
-  const found = (await req(store.get(id))) as PendingNotif | undefined;
-  if (!found) return;
-  found.status = "approved";
-  await req(store.put(found));
 }
 
 /** 해당 월에 고정수입이 이미 반영됐는지 확인하고, 안 됐으면 반영 */
