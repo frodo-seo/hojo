@@ -2650,6 +2650,89 @@ input[type="number"] {
   color: var(--text);
 }
 
+.scan-ledger-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.scan-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-radius: 999px;
+}
+.scan-ledger-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--card);
+}
+.scan-ledger-card-head {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.scan-ledger-type {
+  flex: 1;
+  position: relative;
+}
+.scan-ledger-type::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-dim);
+  border-bottom: 2px solid var(--text-dim);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.scan-ledger-type select {
+  width: 100%;
+  height: 40px;
+  padding: 0 36px 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.scan-ledger-type select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.scan-ledger-card-head .scan-item-remove {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 18px;
+  color: var(--text-dim);
+}
+.scan-ledger-card-head .scan-item-remove:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+.scan-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .scan-actions { display: flex; gap: 8px; margin-top: 8px; align-items: stretch; }
 .scan-actions .save-btn { flex: 1; margin-top: 0; }
 .scan-actions .btn-ghost { padding: 16px 22px; border-radius: 16px; font-size: 15px; font-weight: 700; }

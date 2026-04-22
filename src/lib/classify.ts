@@ -5,13 +5,7 @@ function msg(ko: string, en: string): string {
   return currentLang() === "en" ? en : ko;
 }
 
-export type ScanKind =
-  | "expense"
-  | "income"
-  | "fixed_expense"
-  | "fixed_income"
-  | "asset_trade"
-  | "unknown";
+export type ScanKind = "ledger" | "asset_trade" | "unknown";
 
 interface Classification {
   kind: ScanKind;
@@ -20,33 +14,26 @@ interface Classification {
 
 const TOOL = {
   name: "classify_scan",
-  description: "스크린샷 OCR 텍스트를 5가지 지출·수입·자산 타입으로 분류",
+  description: "스크린샷 OCR 텍스트를 장부(ledger) 또는 자산(asset_trade)으로 분류",
   input_schema: {
     type: "object",
     properties: {
       kind: {
         type: "string",
-        enum: [
-          "expense",
-          "income",
-          "fixed_expense",
-          "fixed_income",
-          "asset_trade",
-          "unknown",
-        ],
+        enum: ["ledger", "asset_trade", "unknown"],
         description:
-          "expense=일회성 지출(영수증·카드결제·배달앱). income=일회성 수입(중고거래 입금·환불 등). fixed_expense=매월 반복 청구(통신사·관리비·월세·구독). fixed_income=매월 반복 수입(월급명세서·정기 이체). asset_trade=증권·암호화폐·금 등 자산 보유/매매 화면. unknown=위 어디에도 해당 안 됨.",
+          "ledger=지출·수입·정기지출·정기수입이 섞일 수 있는 장부성 이미지(영수증·카드승인·카드 알림 리스트·급여명세·구독 청구·입금 알림). asset_trade=증권·암호화폐·원자재 보유/매매 화면(티커·수량·평단가 등장). unknown=위 둘 다 아님(풍경·인물·일반 스크린샷).",
       },
       reason: {
         type: "string",
-        description: "분류 근거를 한 문장으로. 사용자에게 표시할 용도.",
+        description: "분류 근거 한 문장",
       },
     },
     required: ["kind"],
   },
 };
 
-/** OCR 텍스트 → 5지 분류. userHint가 있으면 최우선 반영. */
+/** OCR 텍스트 → ledger vs asset_trade 분류. 세부 타입은 parseLedger가 라인별로 결정. */
 export async function classifyScan(
   cleaned: string,
   anthropicKey: string,
@@ -74,7 +61,7 @@ export async function classifyScan(
         messages: [
           {
             role: "user",
-            content: `다음은 스크린샷을 OCR한 텍스트입니다. 가장 적합한 한 가지 타입으로 분류하세요.\n\n힌트:\n- 영수증·카드승인·배달앱·결제알림·계좌 이체 출금(내가 보낸 송금) → expense\n- 중고거래 입금·환불·배당금·이자·계좌 이체 입금(내가 받은 송금) → income\n- 통신요금 고지·관리비 청구·월세·넷플릭스 등 구독 → fixed_expense\n- 급여명세서·기본급/공제 항목 포함·정기 이체 패턴 → fixed_income\n- 증권사(토스증권·삼성증권·미래에셋)·거래소(업비트·빗썸·바이낸스)·티커/수량/평단가 표시 → asset_trade\n- 위 어디에도 맞지 않으면 unknown${hintBlock}\n\nOCR 텍스트:\n${cleaned}`,
+            content: `스크린샷 OCR 텍스트를 2가지 중 하나로 분류하세요.\n\n- ledger: 영수증·카드승인·카드알림·배달앱·결제알림·계좌이체·입금알림·환불·급여명세서·통신요금·관리비·월세·구독 청구 등. 지출·수입·정기 여부는 나중에 라인별로 판단하므로 여기서는 "장부성 거래가 보이는가"만 보면 됩니다.\n- asset_trade: 증권사(토스증권·삼성증권·미래에셋)·거래소(업비트·빗썸·바이낸스)·티커/수량/평단가 표시, 금·은 시세 화면.\n- unknown: 위 어디에도 맞지 않음(풍경·인물·책·메뉴판·일반 스크린샷).${hintBlock}\n\nOCR 텍스트:\n${cleaned}`,
           },
         ],
       },

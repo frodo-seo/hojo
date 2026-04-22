@@ -12,8 +12,8 @@ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, categoryName } from "../lib/cate
 import { today } from "../lib/format";
 import { isNative } from "../lib/platform";
 import { getApiKeys, useApiKeysStatus } from "../lib/apiKeys";
-import { compressImage, parseExpenseFromText, parseFixedExpense, type ParsedReceipt, type ParsedFixedExpense } from "../lib/receipt";
-import { parseIncome, parseFixedIncome, type ParsedIncome, type ParsedFixedIncome } from "../lib/incomeParse";
+import { compressImage } from "../lib/receipt";
+import { parseLedger, type LedgerItemType, type ParsedLedger, type ParsedLedgerItem } from "../lib/ledger";
 import { parseAssetTrade, type ParsedAssetTrade, type ParsedAssetTrades } from "../lib/assetParse";
 import { classifyScan, type ScanKind } from "../lib/classify";
 import { runOcr } from "../lib/ocr";
@@ -28,18 +28,16 @@ type Props = {
 type Stage = "idle" | "ocr" | "classify" | "parse" | "preview" | "error";
 
 type PreviewState =
-  | { kind: "expense"; data: ParsedReceipt }
-  | { kind: "income"; data: ParsedIncome }
-  | { kind: "fixed_expense"; data: ParsedFixedExpense }
-  | { kind: "fixed_income"; data: ParsedFixedIncome }
+  | { kind: "ledger"; data: ParsedLedger }
   | { kind: "asset_trade"; data: ParsedAssetTrades };
 
-const KIND_KEYS: Exclude<ScanKind, "unknown">[] = [
+const KIND_KEYS: Exclude<ScanKind, "unknown">[] = ["ledger", "asset_trade"];
+
+const LEDGER_TYPES: LedgerItemType[] = [
   "expense",
   "income",
   "fixed_expense",
   "fixed_income",
-  "asset_trade",
 ];
 
 export default function ScanEntry({ onDone, onBack, onGoSettings }: Props) {
@@ -271,20 +269,8 @@ async function parseByKind(
   hint: string,
 ): Promise<PreviewState> {
   switch (kind) {
-    case "expense": {
-      const data = await parseExpenseFromText(cleaned, anthropicKey, hint);
-      return { kind, data };
-    }
-    case "income": {
-      const data = await parseIncome(cleaned, anthropicKey, hint);
-      return { kind, data };
-    }
-    case "fixed_expense": {
-      const data = await parseFixedExpense(cleaned, anthropicKey, hint);
-      return { kind, data };
-    }
-    case "fixed_income": {
-      const data = await parseFixedIncome(cleaned, anthropicKey, hint);
+    case "ledger": {
+      const data = await parseLedger(cleaned, anthropicKey, hint);
       return { kind, data };
     }
     case "asset_trade": {
@@ -297,60 +283,11 @@ async function parseByKind(
 async function saveResult(result: PreviewState): Promise<void> {
   const now = new Date().toISOString();
   switch (result.kind) {
-    case "expense": {
+    case "ledger": {
       const { data } = result;
-      const date = data.date || today();
-      const storeName = data.store || "";
-      for (const item of data.items) {
-        if (!item.category) continue;
-        const tx: Transaction = {
-          id: crypto.randomUUID(),
-          type: "expense",
-          amount: item.price,
-          categoryId: item.category,
-          memo: storeName ? `${storeName} — ${item.name}` : item.name,
-          date,
-          createdAt: now,
-        };
-        await addTransaction(tx);
+      for (const it of data.items) {
+        await saveLedgerItem(it, now);
       }
-      return;
-    }
-    case "income": {
-      const { data } = result;
-      const tx: Transaction = {
-        id: crypto.randomUUID(),
-        type: "income",
-        amount: data.amount,
-        categoryId: data.category,
-        memo: data.memo || data.source || "",
-        date: data.date || today(),
-        createdAt: now,
-      };
-      await addTransaction(tx);
-      return;
-    }
-    case "fixed_income": {
-      const { data } = result;
-      const item: FixedIncome = {
-        id: crypto.randomUUID(),
-        name: data.name,
-        amount: data.amount,
-        categoryId: data.category,
-      };
-      await addFixedIncome(item);
-      return;
-    }
-    case "fixed_expense": {
-      const { data } = result;
-      const item: FixedExpense = {
-        id: crypto.randomUUID(),
-        name: data.name,
-        amount: data.amount,
-        categoryId: data.categoryId,
-        day: data.day,
-      };
-      await addFixedExpense(item);
       return;
     }
     case "asset_trade": {
@@ -371,6 +308,46 @@ async function saveResult(result: PreviewState): Promise<void> {
         };
         await addAsset(asset);
       }
+      return;
+    }
+  }
+}
+
+async function saveLedgerItem(it: ParsedLedgerItem, now: string): Promise<void> {
+  switch (it.type) {
+    case "expense":
+    case "income": {
+      const tx: Transaction = {
+        id: crypto.randomUUID(),
+        type: it.type,
+        amount: it.amount,
+        categoryId: it.categoryId,
+        memo: it.name,
+        date: it.date || today(),
+        createdAt: now,
+      };
+      await addTransaction(tx);
+      return;
+    }
+    case "fixed_expense": {
+      const item: FixedExpense = {
+        id: crypto.randomUUID(),
+        name: it.name,
+        amount: it.amount,
+        categoryId: it.categoryId,
+        day: it.day || 1,
+      };
+      await addFixedExpense(item);
+      return;
+    }
+    case "fixed_income": {
+      const item: FixedIncome = {
+        id: crypto.randomUUID(),
+        name: it.name,
+        amount: it.amount,
+        categoryId: it.categoryId,
+      };
+      await addFixedIncome(item);
       return;
     }
   }
@@ -402,17 +379,8 @@ function PreviewPanel({ result, setResult, onChangeKind, onSave, saving, onRetry
         </select>
       </div>
 
-      {result.kind === "expense" && (
-        <ExpensePreview data={result.data} onChange={(data) => setResult({ kind: "expense", data })} />
-      )}
-      {result.kind === "income" && (
-        <IncomePreview data={result.data} onChange={(data) => setResult({ kind: "income", data })} />
-      )}
-      {result.kind === "fixed_expense" && (
-        <FixedExpensePreview data={result.data} onChange={(data) => setResult({ kind: "fixed_expense", data })} />
-      )}
-      {result.kind === "fixed_income" && (
-        <FixedIncomePreview data={result.data} onChange={(data) => setResult({ kind: "fixed_income", data })} />
+      {result.kind === "ledger" && (
+        <LedgerPreview data={result.data} onChange={(data) => setResult({ kind: "ledger", data })} />
       )}
       {result.kind === "asset_trade" && (
         <AssetPreview data={result.data} onChange={(data) => setResult({ kind: "asset_trade", data })} />
@@ -430,158 +398,119 @@ function PreviewPanel({ result, setResult, onChangeKind, onSave, saving, onRetry
 
 function canSave(r: PreviewState): boolean {
   switch (r.kind) {
-    case "expense":
-      return r.data.items.length > 0 && r.data.items.every((i) => !!i.category);
-    case "income":
-      return r.data.amount > 0;
-    case "fixed_income":
-      return r.data.amount > 0 && !!r.data.name;
-    case "fixed_expense":
-      return r.data.amount > 0 && !!r.data.name;
+    case "ledger":
+      return r.data.items.length > 0
+        && r.data.items.every((i) => i.amount > 0 && !!i.name && !!i.categoryId);
     case "asset_trade":
-      return r.data.items.length > 0 && r.data.items.every((i) => i.quantity > 0 && i.avgCost != null && i.avgCost > 0 && !!i.ticker);
+      return r.data.items.length > 0
+        && r.data.items.every((i) => i.quantity > 0 && i.avgCost != null && i.avgCost > 0 && !!i.ticker);
   }
 }
 
-function ExpensePreview({ data, onChange }: { data: ParsedReceipt; onChange: (d: ParsedReceipt) => void }) {
+function LedgerPreview({
+  data,
+  onChange,
+}: {
+  data: ParsedLedger;
+  onChange: (d: ParsedLedger) => void;
+}) {
   const { t } = useTranslation();
+  const update = (idx: number, patch: Partial<ParsedLedgerItem>) => {
+    const items = data.items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
+    onChange({ ...data, items });
+  };
+  const remove = (idx: number) => {
+    onChange({ ...data, items: data.items.filter((_, i) => i !== idx) });
+  };
+  if (data.items.length === 0) {
+    return <div className="scan-empty">{t("scan.ledgerEmpty")}</div>;
+  }
   return (
     <div className="scan-fields">
-      <Field label={t("scan.store")}>
-        <input
-          type="text"
-          value={data.store || ""}
-          onChange={(e) => onChange({ ...data, store: e.target.value })}
-        />
-      </Field>
-      <Field label={t("scan.date")}>
-        <input
-          type="date"
-          value={data.date || today()}
-          onChange={(e) => onChange({ ...data, date: e.target.value })}
-        />
-      </Field>
-      <div className="scan-items">
-        {data.items.map((item, idx) => (
-          <div key={idx} className="scan-item-row">
-            <input
-              type="text"
-              value={item.name}
-              onChange={(e) => {
-                const items = [...data.items];
-                items[idx] = { ...item, name: e.target.value };
-                onChange({ ...data, items });
-              }}
-            />
-            <input
-              type="number"
-              value={item.price}
-              onChange={(e) => {
-                const items = [...data.items];
-                items[idx] = { ...item, price: Number(e.target.value) };
-                onChange({ ...data, items });
-              }}
-            />
-            <select
-              value={item.category || ""}
-              onChange={(e) => {
-                const items = [...data.items];
-                items[idx] = { ...item, category: e.target.value || null };
-                onChange({ ...data, items });
-              }}
-            >
-              <option value="">{t("scan.pickCategory")}</option>
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>{categoryName(c.id)}</option>
-              ))}
-            </select>
-            <button
-              className="scan-item-remove"
-              onClick={() => onChange({ ...data, items: data.items.filter((_, i) => i !== idx) })}
-            >×</button>
-          </div>
-        ))}
+      <div className="scan-ledger-summary">
+        <span>{t("scan.ledgerCount", { count: data.items.length })}</span>
+        {data.mixedCurrency && (
+          <span className="scan-badge">{t("scan.mixedCurrencyBadge")}</span>
+        )}
       </div>
-    </div>
-  );
-}
-
-function IncomePreview({ data, onChange }: { data: ParsedIncome; onChange: (d: ParsedIncome) => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="scan-fields">
-      <Field label={t("scan.amount")}>
-        <input type="number" value={data.amount}
-          onChange={(e) => onChange({ ...data, amount: Number(e.target.value) })} />
-      </Field>
-      <Field label={t("scan.category")}>
-        <select value={data.category}
-          onChange={(e) => onChange({ ...data, category: e.target.value as ParsedIncome["category"] })}>
-          {INCOME_CATEGORIES.map((c) => (
-            <option key={c.id} value={c.id}>{categoryName(c.id)}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label={t("scan.date")}>
-        <input type="date" value={data.date || today()}
-          onChange={(e) => onChange({ ...data, date: e.target.value })} />
-      </Field>
-      <Field label={t("scan.source")}>
-        <input type="text" value={data.source || ""}
-          onChange={(e) => onChange({ ...data, source: e.target.value })} />
-      </Field>
-    </div>
-  );
-}
-
-function FixedIncomePreview({ data, onChange }: { data: ParsedFixedIncome; onChange: (d: ParsedFixedIncome) => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="scan-fields">
-      <Field label={t("scan.name")}>
-        <input type="text" value={data.name}
-          onChange={(e) => onChange({ ...data, name: e.target.value })} />
-      </Field>
-      <Field label={t("scan.monthlyAmount")}>
-        <input type="number" value={data.amount}
-          onChange={(e) => onChange({ ...data, amount: Number(e.target.value) })} />
-      </Field>
-      <Field label={t("scan.category")}>
-        <select value={data.category}
-          onChange={(e) => onChange({ ...data, category: e.target.value as ParsedFixedIncome["category"] })}>
-          {INCOME_CATEGORIES.map((c) => (
-            <option key={c.id} value={c.id}>{categoryName(c.id)}</option>
-          ))}
-        </select>
-      </Field>
-    </div>
-  );
-}
-
-function FixedExpensePreview({ data, onChange }: { data: ParsedFixedExpense; onChange: (d: ParsedFixedExpense) => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="scan-fields">
-      <Field label={t("scan.name")}>
-        <input type="text" value={data.name}
-          onChange={(e) => onChange({ ...data, name: e.target.value })} />
-      </Field>
-      <Field label={t("scan.monthlyAmount")}>
-        <input type="number" value={data.amount}
-          onChange={(e) => onChange({ ...data, amount: Number(e.target.value) })} />
-      </Field>
-      <Field label={t("scan.category")}>
-        <select value={data.categoryId}
-          onChange={(e) => onChange({ ...data, categoryId: e.target.value })}>
-          {EXPENSE_CATEGORIES.map((c) => (
-            <option key={c.id} value={c.id}>{categoryName(c.id)}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label={t("scan.dueDay")}>
-        <input type="number" min={1} max={28} value={data.day}
-          onChange={(e) => onChange({ ...data, day: Math.max(1, Math.min(28, Number(e.target.value))) })} />
-      </Field>
+      {data.items.map((item, idx) => {
+        const isExpense = item.type === "expense" || item.type === "fixed_expense";
+        const isFixed = item.type === "fixed_expense" || item.type === "fixed_income";
+        const cats = isExpense ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+        const fallbackCat = isExpense ? "etc-expense" : "etc-income";
+        const categoryValue = cats.find((c) => c.id === item.categoryId)?.id || fallbackCat;
+        return (
+          <div key={idx} className="scan-ledger-card">
+            <div className="scan-ledger-card-head">
+              <div className="scan-ledger-type">
+                <select
+                  value={item.type}
+                  onChange={(e) => {
+                    const nextType = e.target.value as LedgerItemType;
+                    const nextIsExpense = nextType === "expense" || nextType === "fixed_expense";
+                    const currIsExpense = item.type === "expense" || item.type === "fixed_expense";
+                    const nextCat = nextIsExpense === currIsExpense
+                      ? item.categoryId
+                      : (nextIsExpense ? "etc-expense" : "etc-income");
+                    update(idx, { type: nextType, categoryId: nextCat });
+                  }}
+                >
+                  {LEDGER_TYPES.map((k) => (
+                    <option key={k} value={k}>{t(`scan.type_${k}`)}</option>
+                  ))}
+                </select>
+              </div>
+              <button className="scan-item-remove" onClick={() => remove(idx)}>×</button>
+            </div>
+            <Field label={t("scan.name")}>
+              <input
+                type="text"
+                value={item.name}
+                onChange={(e) => update(idx, { name: e.target.value })}
+              />
+            </Field>
+            <Field label={t("scan.amount")}>
+              <input
+                type="number"
+                step="any"
+                value={item.amount}
+                onChange={(e) => update(idx, { amount: Number(e.target.value) })}
+              />
+            </Field>
+            <Field label={t("scan.category")}>
+              <select
+                value={categoryValue}
+                onChange={(e) => update(idx, { categoryId: e.target.value })}
+              >
+                {cats.map((c) => (
+                  <option key={c.id} value={c.id}>{categoryName(c.id)}</option>
+                ))}
+              </select>
+            </Field>
+            {isFixed ? (
+              <Field label={t("scan.dueDay")}>
+                <input
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={item.day || 1}
+                  onChange={(e) =>
+                    update(idx, { day: Math.max(1, Math.min(28, Number(e.target.value))) })
+                  }
+                />
+              </Field>
+            ) : (
+              <Field label={t("scan.date")}>
+                <input
+                  type="date"
+                  value={item.date || today()}
+                  onChange={(e) => update(idx, { date: e.target.value })}
+                />
+              </Field>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

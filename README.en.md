@@ -24,8 +24,8 @@
 ```
 [screenshot + optional hint]
   └─ Chandra OCR (Datalab)         → markdown text
-       └─ Classifier Agent (Sonnet) → expense / income / fixed_expense / fixed_income / asset_trade
-            └─ domain parser (Sonnet) → structured fields
+       └─ Classifier Agent (Sonnet) → ledger / asset_trade
+            └─ unified parser (Sonnet) → per-line type · currency · category
                  └─ user review     → IndexedDB
 ```
 
@@ -33,8 +33,10 @@ What one screenshot covers:
 
 - Receipts, card approvals, delivery apps → expense
 - P2P incoming transfers, refunds, dividends → income
-- Telecom, rent, subscriptions → fixed expense
-- Pay stubs, recurring inbound transfers → fixed income
+- Telecom, rent, subscriptions → recurring expense
+- Pay stubs, recurring inbound transfers → recurring income
+- **Mixed ledger in one image** — when expenses, income, and recurring items are interleaved (e.g. a card notification list), each line is classified independently
+- **Per-line currency detection** — Korean card overseas charges that show both KRW and USD are parsed as the original foreign-currency amount (USD / EUR / JPY / GBP) and auto-converted via live FX
 - Brokerage / exchange / metals screens → asset holdings or trades (multi-ticker screenshots are parsed in one pass)
 - Free-form hints like "only record the coffee as an expense" are honored by the parser.
 
@@ -61,9 +63,10 @@ Keys are stored on-device only. They are never sent to a Hojo server (there is n
 
 ## Features
 
-- **Single screenshot entry point** — receipts, payment screens, pay stubs, bills, brokerage / exchange views all auto-classified
+- **Single screenshot entry point** — receipts, payment screens, pay stubs, bills, brokerage / exchange views all handled by one pipeline
+- **Mixed-ledger awareness** — expenses, income, and recurring items that appear side-by-side in one image are separated line by line
+- **Multi-currency** — KRW / USD / EUR / JPY / GBP. Foreign amounts are auto-converted via live FX; per-line currency means a notification list with mixed currencies is handled correctly
 - **Multi-holding asset OCR** — one brokerage screenshot with several tickers is parsed in a single pass
-- Automatic five-way classification: expense, income, fixed expense, fixed income, asset trade
 - Asset portfolio: stocks / ETFs, crypto, commodities (gold / silver / platinum) with live quotes, average cost, market value, and P/L
 - Net-worth aggregation in a base currency plus a pie chart
 - Monthly budget and usage tracking

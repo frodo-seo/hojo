@@ -443,7 +443,7 @@ export default function Settings({ refresh, onRefresh }: Props) {
           </div>
           <div className="info-row">
             <span>{t("appInfo.version")}</span>
-            <span>0.4.0</span>
+            <span>0.4.1</span>
           </div>
           <div className="info-row">
             <span>{t("appInfo.storage")}</span>
