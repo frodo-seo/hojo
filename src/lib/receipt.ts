@@ -95,11 +95,11 @@ const TOOL = {
       },
       items: {
         type: "array",
-        description: "영수증 원본 통화 기준 품목별 금액. 환산하지 말 것.",
+        description: "영수증에 나열된 **모든** 라인 아이템을 빠짐없이 포함. 합치거나 생략하지 말 것. 3줄이면 3개, 10줄이면 10개. 원본 통화 그대로 (환산 금지).",
         items: {
           type: "object",
           properties: {
-            name: { type: "string" },
+            name: { type: "string", description: "영수증에 적힌 품목명 그대로" },
             price: { type: "number", description: "원본 통화 금액. 소수점 그대로 (예: 4.50)." },
             category: {
               type: ["string", "null"],
@@ -167,8 +167,13 @@ async function sonnetParse(cleaned: string, anthropicKey: string, userHint?: str
    - 애매하거나 한국 앱 결제면 KRW
    - items[].price와 total은 반드시 **원본 통화 그대로** (환산 금지). price=4.50이면 4.50 그대로.
 
-3) 품목·카테고리 추출
-   - 품목 1개여도 추출. 카테고리 불확실하면 null.
+3) 품목 추출 — 모든 라인 아이템을 빠짐없이
+   - 영수증에 **N개의 라인 아이템이 있으면 items 배열에도 정확히 N개**. 세트·수량·할인 줄까지 각자 한 줄로.
+   - 품목명·가격을 영수증 표기 그대로. 여러 개면 절대 하나로 합치지 말 것.
+   - 단품 영수증(편의점 커피 1개 등)이면 1개여도 그대로 추출.
+
+4) 카테고리
+   - 품목별로 아래 중 하나 또는 null(불확실).
    - food=식비 cafe=카페/간식 transport=교통 housing=주거/통신 living=생활
      shopping=쇼핑 health=의료 culture=문화/여가 education=교육 event=경조사 etc-expense=기타${hintBlock}
 
