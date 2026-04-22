@@ -107,11 +107,11 @@
     "monthlyOn": "Monthly on day {{day}}"
   },
   "reminder": {
-    "title": "Evening reminder",
-    "desc": "Reminds you to log entries every day at 9 PM.",
+    "title": "Morning briefing",
+    "desc": "Sends a recap of yesterday's spending and overnight asset changes every morning at 8 AM.",
     "on": "On",
     "off": "Off",
-    "enabledMsg": "You'll be reminded daily at 9 PM",
+    "enabledMsg": "You'll get a briefing daily at 8 AM",
     "disabledMsg": "Reminder disabled",
     "deniedMsg": "Notification permission denied"
   },

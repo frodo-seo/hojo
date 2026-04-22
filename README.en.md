@@ -69,7 +69,7 @@ Keys are stored on-device only. They are never sent to a Hojo server (there is n
 - Monthly budget and usage tracking
 - Daily / monthly / yearly AI report (Claude) — includes a morning daily briefing
 - Multilingual (한국어 / English) — AI report language follows the UI
-- 9 PM logging reminder
+- 8 AM daily briefing notification
 - CSV export
 
 ---
