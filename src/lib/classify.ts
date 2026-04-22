@@ -46,7 +46,7 @@ const TOOL = {
   },
 };
 
-/** OCR 텍스트 → 5지 분류. Haiku 사용. userHint가 있으면 최우선 반영. */
+/** OCR 텍스트 → 5지 분류. userHint가 있으면 최우선 반영. */
 export async function classifyScan(
   cleaned: string,
   anthropicKey: string,
@@ -67,7 +67,7 @@ export async function classifyScan(
         "anthropic-dangerous-direct-browser-access": "true",
       },
       body: {
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 256,
         tools: [TOOL],
         tool_choice: { type: "tool", name: "classify_scan" },

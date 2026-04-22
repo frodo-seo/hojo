@@ -75,7 +75,7 @@ async function callTool<T>(
         "anthropic-dangerous-direct-browser-access": "true",
       },
       body: {
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 512,
         tools: [tool],
         tool_choice: { type: "tool", name: tool.name },

@@ -1,5 +1,5 @@
 /**
- * 일일 브리핑: 어제 소비 + 자산 변동을 Haiku가 2-3문장으로 요약.
+ * 일일 브리핑: 어제 소비 + 자산 변동을 Sonnet이 2-3문장으로 요약.
  * Home 첫 방문 시 아침 8시 이후면 자동 생성. 하루 1회.
  */
 
@@ -18,7 +18,7 @@ const KEY_LAST_PORTFOLIO_DATE = "hojo.last_portfolio_date";
 
 export interface DailyBriefing {
   date: string;                 // YYYY-MM-DD (briefing 생성일)
-  text: string;                 // Haiku가 쓴 2-3문장 요약
+  text: string;                 // Sonnet이 쓴 2-3문장 요약
   spendingTotal: number;        // 어제 지출 합 (기준통화)
   portfolioValue: number;       // 현재 평가액 (기준통화)
   portfolioDelta?: number;      // 직전 스냅샷 대비 변동 (없으면 undefined)
@@ -138,7 +138,7 @@ export async function generateDailyBriefing(): Promise<DailyBriefing | null> {
         "anthropic-dangerous-direct-browser-access": "true",
       },
       body: {
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 300,
         messages: [{ role: "user", content: prompt }],
       },

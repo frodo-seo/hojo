@@ -24,7 +24,7 @@
 ```
 [screenshot + optional hint]
   └─ Chandra OCR (Datalab)         → markdown text
-       └─ Classifier Agent (Haiku) → expense / income / fixed_expense / fixed_income / asset_trade
+       └─ Classifier Agent (Sonnet) → expense / income / fixed_expense / fixed_income / asset_trade
             └─ domain parser (Sonnet) → structured fields
                  └─ user review     → IndexedDB
 ```
@@ -111,7 +111,7 @@ In Android Studio, use **Build → Generate Signed App Bundle / APK** to produce
        ├─ Preferences             (API keys)
        └─ CapacitorHttp
             ├─ Datalab Chandra OCR
-            ├─ Anthropic (Haiku for classification, Sonnet for parsing / reports)
+            ├─ Anthropic (Sonnet — classification, parsing, and reports)
             ├─ Yahoo Finance · Stooq (stocks, commodities quotes)
             ├─ CoinGecko (crypto quotes)
             └─ Frankfurter (FX)

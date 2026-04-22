@@ -1,6 +1,6 @@
 /**
  * 매일 아침 8시 일일 브리핑 알림.
- * 탭하면 앱이 열리고 Home에서 Haiku가 어제 소비 + 자산 변동을 요약.
+ * 탭하면 앱이 열리고 Home에서 Sonnet이 어제 소비 + 자산 변동을 요약.
  * 네이티브: Capacitor LocalNotifications 플러그인으로 OS에 예약 등록 (앱이 닫혀도 발송)
  * 웹: setTimeout + Web Notification API 폴백 (앱 열려있을 때만 동작)
  */
